@@ -1,0 +1,12 @@
+Ganeti NBMA tools
+=================
+
+Ganeti non-broadcast-multiple-access networking tools (nbma tools) allow a
+Ganeti cluster to be built over a "foreign" network where bridging instances to
+the node network and grabbing addresses in their IP space is not possible.
+
+When using Ganeti in NBMA mode the instance network is totally virtualized.
+Instances are created with routed NICs, and their traffic is routed over GRE
+tunnels between node themselves for instance-to-instance communication, and to
+special designed gateways for outside access.
+
