@@ -95,6 +95,7 @@ Upon receiving a response ganeti-nld will:
 - Check if the configuration version in the response is greater than the latest
   response (or if it was waiting for any response), and if so:
 - Note the configuration version of the response it got
+- Check that the answers matches a known ganeti node in the cluster
 - Update the node arp table, associating the instance with the remote node, eg:
   ip neigh add $INSTANCE_IP lladdr $NODE_IP dev $GRE_DEVICE nud {permanent/reachable}
 
