@@ -86,9 +86,9 @@ Upon receiving a packet from iptables/netlink ganeti-nld will:
   of the master candidates
 - Note it has just sent a request and it is waiting for an answer for the
   target instance
-- Forward the GRE packet to a peer that knows its final destination, if known.
-  (this step is just an optimization to avoid stalling the communication until
-  the optimized route is in place)
+- Forward the GRE packet to a peer that knows its final destination, if known,
+  or discard the packet. (this step is just an optimization to avoid stalling
+  the communication until the optimized route is in place)
 
 Upon receiving a response ganeti-nld will:
 - Check the hmac signature on the response, and if valid:
