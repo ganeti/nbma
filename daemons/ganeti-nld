@@ -1,0 +1,231 @@
+#!/usr/bin/python
+#
+
+# Copyright (C) 2009, Google Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+
+"""Ganeti network lookup daemon
+
+Ganeti-nld is a daemon that runs on NBMA Ganeti clusters, and is used to lookup
+instance primary nodes, in order to route traffic to them.
+
+NLD can run on Ganeti nodes or NBMA gateways (or endpoints), and depends on
+ganeti-confd being run on the cluster master candidates and, if run outside of
+Ganeti, on the cluster hmac key and master candidate list being available.
+
+"""
+
+import os
+import sys
+import logging
+import asyncore
+
+from optparse import OptionParser
+
+from ganeti_nbma import constants
+from ganeti_nbma import iptables
+from ganeti_nbma import networktables
+
+from ganeti import confd
+from ganeti import constants as gnt_constants
+from ganeti import daemon
+from ganeti import ssconf
+from ganeti import utils
+
+import ganeti.confd.client
+
+
+# Injecting ourselves in the ganeti constants
+NLD = "ganeti-nld"
+gnt_constants.NLD = NLD
+gnt_constants.DAEMONS_LOGFILES[NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
+
+
+NODE_LIST_UPDATE_TIMEOUT=30
+# For now we need a low number here, but in the future we'll rely on
+# invalidation. Until we have invalidation the instance will not be
+# accessible, when it changes node, for up to this number of seconds, plus the
+# time to get a confd response.
+INSTANCE_MAP_UPDATE_TIMEOUT=5
+
+
+class NLDConfdCallback(object):
+  """NLD callback for confd queries.
+
+  """
+  def __init__(self):
+    self.dispatch_table = {
+      gnt_constants.CONFD_REQ_NODE_PIP_LIST:
+        self.UpdateNodeIPList,
+      gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST:
+        self.UpdateInstanceIPList,
+      gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP:
+        self.UpdateInstanceNodeMapping,
+    }
+
+  def UpdateNodeIPList(self, up):
+    """Update dynamic iptables rules from the node list
+
+    """
+    node_list = up.server_reply.answer
+    iptables.UpdateIptablesRules(node_list)
+
+  def UpdateInstanceIPList(self, up):
+    for ip in up.server_reply.answer:
+      req = confd.client.ConfdClientRequest(
+        type=gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP,
+        query=ip,
+        )
+      up.client.SendRequest(req)
+
+  def UpdateInstanceNodeMapping(self, up):
+    instance = up.orig_request.query
+    node = up.server_reply.answer
+    # FIXME: unhardcode gtun0
+    networktables.UpdateNetworkEntry(instance, node,
+                                     networktables.NEIGHBOUR_CONTEXT,
+                                     "gtun0")
+
+  def __call__(self, up):
+    """Filtering callback
+
+    @type up: L{ConfdUpcallPayload}
+    @param up: upper callback
+
+    """
+    if up.type == confd.client.UPCALL_REPLY:
+      rtype = up.orig_request.type
+      try:
+        dispatcher = self.dispatch_table[rtype]
+      except KeyError, err:
+        logging.warning("Unhandled confd response type: %s" % rtype)
+      dispatcher(up)
+
+class NLDPeriodicUpdater(object):
+  """Update network lookup tables periodically
+
+  """
+  def __init__(self, mainloop, confd_client):
+    """Constructor for NLDPeriodicUpdater
+
+    @type mainloop: L{daemon.Mainloop}
+    @param mainloop: ganeti-nld mainloop
+    @type confd_client: L{ganeti.confd.client.ConfdClient}
+    @param confd_client: ganeti-nld confd client
+
+    """
+    self.mainloop = mainloop
+    self.confd_client = confd_client
+
+    self.node_timer_handle = None
+    self.instance_timer_handle = None
+    self.UpdateNodes()
+    self.UpdateInstances()
+
+  def _EnableTimers(self):
+    if self.node_timer_handle is None:
+      self.node_timer_handle = \
+        self.mainloop.scheduler.enter(NODE_LIST_UPDATE_TIMEOUT,
+                                      1, self.UpdateNodes, [])
+
+    if self.instance_timer_handle is None:
+      self.instance_timer_handle = \
+        self.mainloop.scheduler.enter(INSTANCE_MAP_UPDATE_TIMEOUT,
+                                      1, self.UpdateInstances, [])
+
+  def UpdateNodes(self):
+    """Periodically update the node list.
+
+    The updated node list will be handled by the iptables module.
+
+    """
+    self.node_timer_handle = None
+    self._EnableTimers()
+    logging.debug("Sending node ip list request")
+    req = confd.client.ConfdClientRequest(
+      type=gnt_constants.CONFD_REQ_NODE_PIP_LIST)
+    self.confd_client.SendRequest(req)
+
+  def UpdateInstances(self):
+    """Periodically update the instance list.
+
+    The updated instance ip list will be used to build an instance map.
+
+    """
+    self.instance_timer_handle = None
+    self._EnableTimers()
+    logging.debug("Sending instance ip list request")
+    req = confd.client.ConfdClientRequest(
+      type=gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST)
+    self.confd_client.SendRequest(req)
+
+
+def CheckNld(options, args):
+  """Initial checks whether to run exit with a failure.
+
+  """
+  if not os.path.isfile(options.hmac_file):
+    print >> sys.stderr, "Need HMAC key %s to run" % options.hmac_file
+    sys.exit(gnt_constants.EXIT_FAILURE)
+
+  if not os.path.isfile(options.mc_file):
+    print >> sys.stderr, "Need MC list %s to run" % options.mc_file
+    sys.exit(gnt_constants.EXIT_FAILURE)
+
+
+def ExecNld(options, args):
+  """Main confd function, executed with PID file held
+
+  """
+  mainloop = daemon.Mainloop()
+  hmac_key = utils.ReadFile(options.hmac_file)
+  mc_list = utils.ReadFile(options.mc_file).splitlines()
+  my_callback = NLDConfdCallback()
+  callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
+
+  cclient = confd.client.ConfdClient(hmac_key, mc_list,
+                                     callback, logger=logging)
+  updater = NLDPeriodicUpdater(mainloop, cclient)
+  mainloop.Run()
+
+
+def main():
+  """Main function for the confd daemon.
+
+  """
+  parser = OptionParser(description="Ganeti network lookup daemon",
+                        usage="%prog [-f] [-d] [-b ADDRESS]",
+                        version="%%prog (ganeti-nld) %s" %
+                        constants.RELEASE_VERSION)
+  parser.add_option("--hmac-key", dest="hmac_file",
+                    help="HMAC key file",
+                    default=gnt_constants.HMAC_CLUSTER_KEY, type="string")
+  ss = ssconf.SimpleStore()
+  default_mclist = ss.KeyToFilename(gnt_constants.SS_MASTER_CANDIDATES_IPS)
+  parser.add_option("--mc-list", dest="mc_file",
+                    help="Master Candidates addresses file",
+                    default=default_mclist, type="string")
+
+  dirs = [(val, gnt_constants.RUN_DIRS_MODE)
+          for val in gnt_constants.SUB_RUN_DIRS]
+  dirs.append((gnt_constants.LOCK_DIR, 1777))
+  daemon.GenericMain(NLD, parser, dirs, CheckNld, ExecNld)
+
+
+if __name__ == "__main__":
+  main()

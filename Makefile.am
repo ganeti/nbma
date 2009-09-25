@@ -9,6 +9,9 @@ dist_doc_DATA = \
 	COPYING \
 	README
 
+dist_sbin_SCRIPTS= \
+	daemons/ganeti-nld
+
 nodist_nbmautils_SCRIPTS = \
 	scripts/gre_setup \
 	scripts/iptables_setup \
