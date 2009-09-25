@@ -6,13 +6,26 @@ REPLACE_VARS_SED = autotools/replace_vars.sed
 
 dist_doc_DATA = \
 	COPYING \
-	README
+	README \
+	doc/examples/nbma-utils.conf
+
+nodist_nbmautils_SCRIPTS = \
+	scripts/gre_setup \
+	scripts/iptables_setup \
+	scripts/routing_setup
+
+EXTRA_DIST = \
+	scripts/gre_setup.in \
+	scripts/iptables_setup.in \
+	scripts/routing_setup.in
 
 CLEANFILES = \
 	autotools/replace_vars.sed \
-	stamp-directories
+	stamp-directories \
+	$(nodist_nbmautils_SCRIPTS)
 
 DIRS = \
+       scripts \
        doc \
        autotools \
        lib
@@ -28,3 +41,7 @@ $(REPLACE_VARS_SED): Makefile stamp-directories
 		echo 's#@LOCALSTATEDIR@#$(localstatedir)#g'; \
 		echo 's#@NBMA_VERSION@#$(PACKAGE_VERSION)#g'; \
 	} > $@
+
+scripts/%: scripts/%.in stamp-directories $(REPLACE_VARS_SED)
+	sed -f $(REPLACE_VARS_SED) < $< > $@
+	chmod u+x $@

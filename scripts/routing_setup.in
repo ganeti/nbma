@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+
+# Copyright (C) 2009 Google Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+# Load config file
+CONF_FILE=@PKGSYSCONFDIR@/nbma-utils.conf
+
+if [[ ! -e "$CONF_FILE" ]]; then
+  echo "Config file not found, should be: $CONF_FILE"
+  exit 1;
+fi
+
+. $CONF_FILE
+
+# Enable packet forwarding
+if [ "$FORWARDING_GRE_ONLY" = "yes" ]; then
+  echo 1 > /proc/sys/net/ipv4/conf/$GRE_INTERFACE/forwarding
+else
+  echo 1 > /proc/sys/net/ipv4/ip_forward
+fi
+
+# Set routing
+ip route add $INSTANCE_NETWORK table $ROUTING_TABLE dev $GRE_INTERFACE
+
+# ip rules
+if [ "$ROUTING_TABLE" != "default" ]; then
+  if [ -z "$(ip rule list | grep "lookup $ROUTING_TABLE")" ]; then
+    ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
+    ip rule add from $INSTANCE_NETWORK table $ROUTING_TABLE
+  fi
+fi
