@@ -1,0 +1,31 @@
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+
+# global ignores
+*.py[co]
+*.swp
+
+# /
+/Makefile
+/Makefile.in
+/aclocal.m4
+/autom4te.cache
+/autotools/install-sh
+/autotools/missing
+/autotools/py-compile
+/autotools/replace_vars.sed
+/config.log
+/config.status
+/configure
+/stamp-directories
+/*.patch
+/*.tar.bz2
+/*.tar.gz
+
+# scripts
+/scripts/gre_setup
+/scripts/routing_setup
+/scripts/iptables_setup
