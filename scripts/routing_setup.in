@@ -23,7 +23,11 @@
 
 # Enable packet forwarding
 if [ "$FORWARDING_GRE_ONLY" = "yes" ]; then
+  # We only want packet forwarding on the gre tunnel
   echo 1 > /proc/sys/net/ipv4/conf/$GRE_INTERFACE/forwarding
+  # but endpoints will also need it on the base netdev, to work
+  [[ $AM_ENDPOINT -ne 0 ]] && \
+    echo 1 > /proc/sys/net/ipv4/conf/$ENDPOINT_NETDEV/forwarding
 else
   echo 1 > /proc/sys/net/ipv4/ip_forward
 fi
