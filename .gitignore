@@ -29,3 +29,4 @@
 /scripts/gre_setup
 /scripts/routing_setup
 /scripts/iptables_setup
+/scripts/common.sh

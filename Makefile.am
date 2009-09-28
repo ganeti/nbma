@@ -12,12 +12,14 @@ dist_doc_DATA = \
 nodist_nbmautils_SCRIPTS = \
 	scripts/gre_setup \
 	scripts/iptables_setup \
-	scripts/routing_setup
+	scripts/routing_setup \
+	scripts/common.sh
 
 EXTRA_DIST = \
 	scripts/gre_setup.in \
 	scripts/iptables_setup.in \
-	scripts/routing_setup.in
+	scripts/routing_setup.in \
+	scripts/common.sh.in
 
 CLEANFILES = \
 	autotools/replace_vars.sed \
@@ -39,6 +41,7 @@ $(REPLACE_VARS_SED): Makefile stamp-directories
 	{	echo 's#@PREFIX@#$(prefix)#g'; \
 		echo 's#@PKGSYSCONFDIR@#$(pkgsysconfdir)#g'; \
 		echo 's#@LOCALSTATEDIR@#$(localstatedir)#g'; \
+		echo 's#@NBMAUTILSDIR@#$(nbmautilsdir)#g'; \
 		echo 's#@NBMA_VERSION@#$(PACKAGE_VERSION)#g'; \
 	} > $@
 

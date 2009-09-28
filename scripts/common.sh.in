@@ -1,6 +1,3 @@
-#!/bin/bash
-#
-
 # Copyright (C) 2009 Google Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -18,21 +15,32 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
-# Load common file
-. @NBMAUTILSDIR@/common.sh
+# Common shell fragment for nbma scripts
 
-# Enable packet forwarding
-if [ "$FORWARDING_GRE_ONLY" = "yes" ]; then
-  echo 1 > /proc/sys/net/ipv4/conf/$GRE_INTERFACE/forwarding
-else
-  echo 1 > /proc/sys/net/ipv4/ip_forward
+fail() {
+  echo "$@" >&2
+  exit 1
+}
+
+# Load config file
+CONF_FILE=@PKGSYSCONFDIR@/nbma-utils.conf
+
+if [[ ! -e "$CONF_FILE" ]]; then
+  fail "Config file not found, should be: $CONF_FILE"
 fi
 
-# Set routing
-ip route add $INSTANCE_NETWORK table $ROUTING_TABLE dev $GRE_INTERFACE
+. $CONF_FILE
 
-# ip rules
-if [ -z "$(ip rule list | grep "lookup $ROUTING_TABLE")" ]; then
-  ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
-  ip rule add from $INSTANCE_NETWORK table $ROUTING_TABLE
-fi
+: ${GRE_INTERFACE:="gtun0"}
+: ${GRE_KEY:="1"}
+: ${GRE_TTL:="255"}
+: ${FORWARDING_GRE_ONLY:="yes"}
+: ${GRE_BASE_NETDEV:="eth0"}
+: ${ROUTING_TABLE:="100"}
+
+[[ -n "$INSTANCE_NETWORK" ]] || fail "Missing INSTANCE_NETWORK in config file"
+[[ -n "$ENDPOINT_INTERNAL_IP" ]] || \
+  fail "Missing ENDPOINT_INTERNAL_IP in config file"
+[[ -n "$ENDPOINT_EXTERNAL_IP" ]] || \
+  fail "Missing ENDPOINT_EXTERNAL_IP in config file"
+

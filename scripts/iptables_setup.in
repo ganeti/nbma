@@ -18,15 +18,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
-# Load config file
-CONF_FILE=@PKGSYSCONFDIR@/nbma-utils.conf
-
-if [[ ! -e "$CONF_FILE" ]]; then
-  echo "Config file not found, should be: $CONF_FILE"
-  exit 1;
-fi
-
-. $CONF_FILE
+# Load common file
+. @NBMAUTILSDIR@/common.sh
 
 iptables -F INPUT
 
