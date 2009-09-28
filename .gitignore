@@ -30,3 +30,6 @@
 /scripts/routing_setup
 /scripts/iptables_setup
 /scripts/common.sh
+
+# lib
+/lib/_autoconf.py
