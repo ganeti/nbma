@@ -39,9 +39,7 @@ fi
 ip route add $INSTANCE_NETWORK table $ROUTING_TABLE dev $GRE_INTERFACE
 
 # ip rules
-if [ "$ROUTING_TABLE" != "default" ]; then
-  if [ -z "$(ip rule list | grep "lookup $ROUTING_TABLE")" ]; then
-    ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
-    ip rule add from $INSTANCE_NETWORK table $ROUTING_TABLE
-  fi
+if [ -z "$(ip rule list | grep "lookup $ROUTING_TABLE")" ]; then
+  ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
+  ip rule add from $INSTANCE_NETWORK table $ROUTING_TABLE
 fi
