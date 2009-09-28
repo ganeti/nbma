@@ -36,6 +36,7 @@ fi
 : ${GRE_TTL:="255"}
 : ${FORWARDING_GRE_ONLY:="yes"}
 : ${GRE_BASE_NETDEV:="eth0"}
+: ${ENDPOINT_NETDEV:="eth0"}
 : ${ROUTING_TABLE:="100"}
 
 [[ -n "$INSTANCE_NETWORK" ]] || fail "Missing INSTANCE_NETWORK in config file"
@@ -44,3 +45,9 @@ fi
 [[ -n "$ENDPOINT_EXTERNAL_IP" ]] || \
   fail "Missing ENDPOINT_EXTERNAL_IP in config file"
 
+AM_ENDPOINT=0
+ip addr show dev $ENDPOINT_NETDEV | grep -qF "$ENDPOINT_EXTERNAL_IP" && \
+  AM_ENDPOINT=1
+
+# Endpoints cannot currently work with policy routing
+[[ $AM_ENDPOINT -ne 0 ]] && ROUTING_TABLE="main"
