@@ -1,5 +1,6 @@
 nbmautilsdir = $(libdir)/ganeti/nbma
 pkgsysconfdir = $(sysconfdir)/ganeti
+pkgpythondir = $(pythondir)/ganeti_nbma
 
 ACLOCAL_AMFLAGS = -I autotools
 REPLACE_VARS_SED = autotools/replace_vars.sed
@@ -13,6 +14,11 @@ nodist_nbmautils_SCRIPTS = \
 	scripts/iptables_setup \
 	scripts/routing_setup \
 	scripts/common.sh
+
+pkgpython_PYTHON = \
+	lib/__init__.py \
+	lib/iptables.py \
+	lib/networktables.py
 
 EXTRA_DIST = \
 	scripts/gre_setup.in \

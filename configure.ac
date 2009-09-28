@@ -12,4 +12,10 @@ AC_PROG_LN_S
 
 AC_CONFIG_FILES([ Makefile ])
 
+# Check for Python
+AM_PATH_PYTHON(2.4)
+
+AC_PYTHON_MODULE(ganeti, t)
+AC_PYTHON_MODULE(netfilter, t)
+
 AC_OUTPUT
