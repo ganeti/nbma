@@ -30,5 +30,5 @@ fi
 
 # Set GRE tunnel
 ip tunnel add $GRE_INTERFACE mode gre key $GRE_KEY ttl $GRE_TTL \
-   dev $BASE_NETDEV
+   dev $GRE_BASE_NETDEV
 ip link set $GRE_INTERFACE up
