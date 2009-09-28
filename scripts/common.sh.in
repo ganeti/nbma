@@ -23,7 +23,7 @@ fail() {
 }
 
 # Load config file
-CONF_FILE=@PKGSYSCONFDIR@/nbma-utils.conf
+CONF_FILE=@PKGSYSCONFDIR@/nbma.conf
 
 if [[ ! -e "$CONF_FILE" ]]; then
   fail "Config file not found, should be: $CONF_FILE"

@@ -1,4 +1,4 @@
-nbmautilsdir = $(libdir)/ganeti/nbma-utils
+nbmautilsdir = $(libdir)/ganeti/nbma
 pkgsysconfdir = $(sysconfdir)/ganeti
 
 ACLOCAL_AMFLAGS = -I autotools
@@ -6,8 +6,7 @@ REPLACE_VARS_SED = autotools/replace_vars.sed
 
 dist_doc_DATA = \
 	COPYING \
-	README \
-	doc/examples/nbma-utils.conf
+	README
 
 nodist_nbmautils_SCRIPTS = \
 	scripts/gre_setup \
