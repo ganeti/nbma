@@ -22,11 +22,13 @@ import re
 
 from ganeti import objects
 from ganeti import utils
+from ganeti import errors
 
 from cStringIO import StringIO
 
 
 DEFAULT_SECTION="default"
+ENDPOINT_EXTIP_KEY="endpoint_external_ip"
 
 
 class BashFragmentConfigParser(objects.SerializableConfigParser):
@@ -74,4 +76,35 @@ class BashFragmentConfigParser(objects.SerializableConfigParser):
 
     return BashFragmentConfigParser.LoadFragmentFromString(file_content,
                                                            section=section)
+
+
+class NLDConfig(objects.ConfigObject):
+  __slots__ = objects.ConfigObject.__slots__ + [
+    "endpoints",
+    ]
+
+  @staticmethod
+  def FromConfigFiles(files):
+    """Parse the config files
+
+    @type files: list
+    @param files: list of config files
+    @rtype: NLDConfig
+    @return: Initialized NLD config
+
+    """
+    endpoints = []
+
+    for config_file in files:
+      parser = BashFragmentConfigParser.LoadFragmentFromFile(config_file)
+      if parser.has_option(DEFAULT_SECTION, ENDPOINT_EXTIP_KEY):
+        ip = parser.get(DEFAULT_SECTION, ENDPOINT_EXTIP_KEY)
+        if ip in endpoints:
+          raise errors.ConfigurationError('Endpoint %s already declared' % ip)
+        endpoints.append(ip)
+
+    if not endpoints:
+      raise errors.ConfigurationError('No endpoints found')
+
+    return NLDConfig(endpoints=endpoints)
 
