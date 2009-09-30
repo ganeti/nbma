@@ -29,6 +29,8 @@ from cStringIO import StringIO
 
 DEFAULT_SECTION="default"
 ENDPOINT_EXTIP_KEY="endpoint_external_ip"
+INTERFACE_KEY="gre_interface"
+TABLE_KEY="routing_table"
 
 
 class BashFragmentConfigParser(objects.SerializableConfigParser):
@@ -82,6 +84,7 @@ class NLDConfig(objects.ConfigObject):
   __slots__ = objects.ConfigObject.__slots__ + [
     "endpoints",
     "out_mc_file",
+    "tables_tunnels",
     ]
 
   @staticmethod
@@ -95,6 +98,7 @@ class NLDConfig(objects.ConfigObject):
 
     """
     endpoints = []
+    tables_map = {}
 
     for config_file in files:
       parser = BashFragmentConfigParser.LoadFragmentFromFile(config_file)
@@ -104,8 +108,27 @@ class NLDConfig(objects.ConfigObject):
           raise errors.ConfigurationError('Endpoint %s already declared' % ip)
         endpoints.append(ip)
 
+      if parser.has_option(DEFAULT_SECTION, TABLE_KEY):
+        table = parser.get(DEFAULT_SECTION, TABLE_KEY)
+      else:
+        table = constants.DEFAULT_ROUTING_TABLE
+
+      if parser.has_option(DEFAULT_SECTION, INTERFACE_KEY):
+        interface = parser.get(DEFAULT_SECTION, INTERFACE_KEY)
+      else:
+        interface = constants.DEFAULT_NEIGHBOUR_INTERFACE
+
+      if table not in tables_map:
+        tables_map[table] = interface
+      elif tables_map[table] != interface:
+        raise errors.ConfigurationError('Mapping for table %s already declared'
+          ' (was: %s, new one: %s)' % (table, tables_map[table], interface))
+
     if not endpoints:
       raise errors.ConfigurationError('No endpoints found')
 
-    return NLDConfig(endpoints=endpoints)
+    if not tables_map:
+      raise errors.ConfigurationError('No table to interface association found')
+
+    return NLDConfig(endpoints=endpoints, tables_tunnels=tables_map)
 
