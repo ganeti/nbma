@@ -123,5 +123,6 @@ lib/_autoconf.py: Makefile stamp-directories
 	  echo '"""'; \
 	  echo ''; \
 	  echo "PACKAGE_VERSION = '$(PACKAGE_VERSION)'"; \
+	  echo "PKGSYSCONFDIR = '$(pkgsysconfdir)'"; \
 	} > $@
 

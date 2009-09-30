@@ -21,4 +21,5 @@
 from ganeti_nbma import _autoconf
 
 RELEASE_VERSION = _autoconf.PACKAGE_VERSION
+CONF_DIR = _autoconf.PKGSYSCONFDIR
 
