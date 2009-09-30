@@ -27,15 +27,18 @@ nodist_nbmautils_SCRIPTS = \
 pkgpython_PYTHON = \
 	lib/__init__.py \
 	lib/constants.py \
+	lib/config.py \
 	lib/iptables.py \
 	lib/networktables.py
 
 nodist_pkgpython_PYTHON = \
 	lib/_autoconf.py
 
-TEST_FILES =
+TEST_FILES = \
+	test/data/bash_var_fragment.sh
 
-dist_TESTS =
+dist_TESTS = \
+	test/nbma.config_unittest.py
 
 TESTS = $(dist_TESTS)
 
@@ -60,7 +63,8 @@ DIRS = \
        daemons \
        autotools \
        lib \
-       test
+       test \
+       test/data
 
 BUILT_SOURCES = \
 	lib/_autoconf.py \
