@@ -175,33 +175,36 @@ class NLDPeriodicUpdater(object):
     self.confd_client.SendRequest(req)
 
 
-def CheckNld(options, args):
-  """Initial checks whether to run exit with a failure.
+class NetworkLookupDaemon(object):
+  """Main Ganeti NLD class
 
   """
-  if not os.path.isfile(options.hmac_file):
-    print >> sys.stderr, "Need HMAC key %s to run" % options.hmac_file
-    sys.exit(gnt_constants.EXIT_FAILURE)
+  def CheckNld(self, options, args):
+    """Initial checks whether to run exit with a failure.
 
-  if not os.path.isfile(options.mc_file):
-    print >> sys.stderr, "Need MC list %s to run" % options.mc_file
-    sys.exit(gnt_constants.EXIT_FAILURE)
+    """
+    if not os.path.isfile(options.hmac_file):
+      print >> sys.stderr, "Need HMAC key %s to run" % options.hmac_file
+      sys.exit(gnt_constants.EXIT_FAILURE)
 
+    if not os.path.isfile(options.mc_file):
+      print >> sys.stderr, "Need MC list %s to run" % options.mc_file
+      sys.exit(gnt_constants.EXIT_FAILURE)
 
-def ExecNld(options, args):
-  """Main confd function, executed with PID file held
+  def ExecNld(self, options, args):
+    """Main confd function, executed with PID file held
 
-  """
-  mainloop = daemon.Mainloop()
-  hmac_key = utils.ReadFile(options.hmac_file)
-  mc_list = utils.ReadFile(options.mc_file).splitlines()
-  my_callback = NLDConfdCallback()
-  callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
+    """
+    mainloop = daemon.Mainloop()
+    hmac_key = utils.ReadFile(options.hmac_file)
+    mc_list = utils.ReadFile(options.mc_file).splitlines()
+    my_callback = NLDConfdCallback()
+    callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
 
-  cclient = confd.client.ConfdClient(hmac_key, mc_list,
-                                     callback, logger=logging)
-  updater = NLDPeriodicUpdater(mainloop, cclient)
-  mainloop.Run()
+    cclient = confd.client.ConfdClient(hmac_key, mc_list,
+                                       callback, logger=logging)
+    updater = NLDPeriodicUpdater(mainloop, cclient)
+    mainloop.Run()
 
 
 def main():
@@ -224,7 +227,9 @@ def main():
   dirs = [(val, gnt_constants.RUN_DIRS_MODE)
           for val in gnt_constants.SUB_RUN_DIRS]
   dirs.append((gnt_constants.LOCK_DIR, 1777))
-  daemon.GenericMain(NLD, parser, dirs, CheckNld, ExecNld)
+  nld = NetworkLookupDaemon()
+
+  daemon.GenericMain(NLD, parser, dirs, nld.CheckNld, nld.ExecNld)
 
 
 if __name__ == "__main__":
