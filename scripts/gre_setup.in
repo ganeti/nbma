@@ -21,6 +21,11 @@
 # Load common file
 . @NBMAUTILSDIR@/common.sh
 
+# Add the GRE module, if not present
+if [[ -f /proc/modules ]]; then
+  grep -q "^ip_gre[[:space:]]" /proc/modules || modprobe -q ip_gre || :
+fi
+
 # Create the GRE tunnel
 ip tunnel add $GRE_INTERFACE mode gre key $GRE_KEY ttl $GRE_TTL \
    dev $GRE_BASE_NETDEV
