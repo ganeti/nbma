@@ -1,5 +1,5 @@
 nbmautilsdir = $(libdir)/ganeti/nbma
-pkgsysconfdir = $(sysconfdir)/ganeti
+pkgsysconfdir = $(sysconfdir)/ganeti/nbma
 pkgpythondir = $(pythondir)/ganeti_nbma
 
 ACLOCAL_AMFLAGS = -I autotools

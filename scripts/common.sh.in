@@ -22,14 +22,22 @@ fail() {
   exit 1
 }
 
+load_config_fragment() {
+  fragment=$1
+  if [[ ! -f "$fragment" || ! -r "$fragment" ]]; then
+    fail "Cannot read config file $fragment"
+  fi
+
+  . $fragment
+}
+
+
 # Load config file
-CONF_FILE=@PKGSYSCONFDIR@/nbma.conf
+COMMON_CONF_FILE=@PKGSYSCONFDIR@/common.conf
+load_config_fragment $COMMON_CONF_FILE
 
-if [[ ! -e "$CONF_FILE" ]]; then
-  fail "Config file not found, should be: $CONF_FILE"
-fi
-
-. $CONF_FILE
+ENDPOINT_CONF_FILE=$1
+[[ -n "$ENDPOINT_CONF_FILE" ]] && load_config_fragment $ENDPOINT_CONF_FILE
 
 : ${GRE_INTERFACE:="gtun0"}
 : ${GRE_KEY:="1"}
