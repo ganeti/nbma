@@ -1,9 +1,15 @@
+
+# Automake doesn't export these variables before version 1.10.
+abs_top_builddir = @abs_top_builddir@
+abs_top_srcdir = @abs_top_srcdir@
+
 nbmautilsdir = $(libdir)/ganeti/nbma
 pkgsysconfdir = $(sysconfdir)/ganeti/nbma
 pkgpythondir = $(pythondir)/ganeti_nbma
 
 ACLOCAL_AMFLAGS = -I autotools
 REPLACE_VARS_SED = autotools/replace_vars.sed
+RUN_IN_TEMPDIR = $(top_srcdir)/autotools/run-in-tempdir
 
 dist_doc_DATA = \
 	COPYING \
@@ -27,11 +33,20 @@ pkgpython_PYTHON = \
 nodist_pkgpython_PYTHON = \
 	lib/_autoconf.py
 
+TEST_FILES =
+
+dist_TESTS =
+
+TESTS = $(dist_TESTS)
+
 EXTRA_DIST = \
 	scripts/gre_setup.in \
 	scripts/iptables_setup.in \
 	scripts/routing_setup.in \
-	scripts/common.sh.in
+	scripts/common.sh.in \
+	$(RUN_IN_TEMPDIR) \
+	$(TEST_FILES) \
+	$(dist_TESTS)
 
 CLEANFILES = \
 	autotools/replace_vars.sed \
@@ -42,15 +57,40 @@ CLEANFILES = \
 DIRS = \
        scripts \
        doc \
+       daemons \
        autotools \
-       lib
+       lib \
+       test
 
 BUILT_SOURCES = \
-	lib/_autoconf.py
+	lib/_autoconf.py \
+	srclinks
+
+TESTS_ENVIRONMENT = \
+	PYTHONPATH=. \
+	$(RUN_IN_TEMPDIR) $(PYTHON)
+
+all_python_code = \
+	$(dist_sbin_SCRIPTS) \
+	$(dist_TESTS) \
+	$(pkgpython_PYTHON)
+
+srclink_files = \
+	$(all_python_code) \
+	$(TEST_FILES)
 
 stamp-directories: Makefile
 	@mkdir_p@ $(DIRS)
 	touch $@
+
+srclinks: stamp-directories
+	set -e; \
+	for i in $(srclink_files); do \
+	  if test ! -f $$i -a -f $(abs_top_srcdir)/$$i; then \
+	  $(LN_S) $(abs_top_srcdir)/$$i $$i; \
+	  fi; \
+	done
+
 
 $(REPLACE_VARS_SED): Makefile stamp-directories
 	set -e; \
