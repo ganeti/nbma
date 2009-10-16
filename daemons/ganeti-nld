@@ -40,12 +40,14 @@ from optparse import OptionParser
 from ganeti_nbma import constants
 from ganeti_nbma import iptables
 from ganeti_nbma import networktables
+from ganeti_nbma import config
 
 from ganeti import confd
 from ganeti import constants as gnt_constants
 from ganeti import daemon
 from ganeti import ssconf
 from ganeti import utils
+from ganeti import errors
 
 import ganeti.confd.client
 
@@ -191,6 +193,22 @@ class NetworkLookupDaemon(object):
       print >> sys.stderr, "Need MC list %s to run" % options.mc_file
       sys.exit(gnt_constants.EXIT_FAILURE)
 
+    if (constants.DEFAULT_CONF_FILE not in args and
+        os.path.exists(constants.DEFAULT_CONF_FILE)):
+      args.append(constants.DEFAULT_CONF_FILE)
+    elif not args:
+      print >> sys.stderr, "Please pass in at least a config file"
+      sys.exit(gnt_constants.EXIT_FAILURE)
+
+    try:
+      self.config = config.NLDConfig.FromConfigFiles(args)
+    except EnvironmentError, err:
+      print >> sys.stderr, "Error loading config: %s" % err
+      sys.exit(gnt_constants.EXIT_FAILURE)
+    except errors.ConfigurationError, err:
+      print >> sys.stderr, "Configuration error: %s" % err
+      sys.exit(gnt_constants.EXIT_FAILURE)
+
   def ExecNld(self, options, args):
     """Main confd function, executed with PID file held
 
@@ -212,7 +230,7 @@ def main():
 
   """
   parser = OptionParser(description="Ganeti network lookup daemon",
-                        usage="%prog [-f] [-d] [-b ADDRESS]",
+                        usage="%prog [-f] [-d] [-b ADDRESS] [config...]",
                         version="%%prog (ganeti-nld) %s" %
                         constants.RELEASE_VERSION)
   parser.add_option("--hmac-key", dest="hmac_file",

@@ -22,4 +22,5 @@ from ganeti_nbma import _autoconf
 
 RELEASE_VERSION = _autoconf.PACKAGE_VERSION
 CONF_DIR = _autoconf.PKGSYSCONFDIR
+DEFAULT_CONF_FILE = CONF_DIR + "/common.conf"
 
