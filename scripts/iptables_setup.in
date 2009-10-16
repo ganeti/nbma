@@ -21,10 +21,22 @@
 # Load common file
 . @NBMAUTILSDIR@/common.sh
 
-iptables -F INPUT
+# Apply "global" rules only if not processing a custom config file.
+if [[ -z "$ENDPOINT_CONF_FILE" ]]; then
+  iptables -F INPUT
+  iptables -t raw -F PREROUTING
+  # Send GRE traffic to the GNT_TRUST chain for filtering so it comes
+  # from nodes only
+  iptables --new-chain GNT_TRUST || true
+  iptables -A INPUT --protocol gre -j GNT_TRUST
+  iptables -A INPUT --protocol gre -j DROP
+  # Don't conntrack GRE packets at all
+  iptables -t raw -A PREROUTING --protocol gre -j NOTRACK
+  iptables -t raw -A OUTPUT --protocol gre -j NOTRACK
+fi
 
-# Send GRE traffic to the GNT_TRUST chain for filtering so it comes
-# from nodes only
-iptables --new-chain GNT_TRUST || true
-iptables -A INPUT --protocol gre -j GNT_TRUST
-iptables -A INPUT --protocol gre -j DROP
+# Don't perform connection tracking on packets to/from the instance network
+if [[ -n "$INSTANCE_NETWORK" ]]; then
+  iptables -t raw -A PREROUTING -s $INSTANCE_NETWORK -j NOTRACK
+  iptables -t raw -A PREROUTING -d $INSTANCE_NETWORK -j NOTRACK
+fi
