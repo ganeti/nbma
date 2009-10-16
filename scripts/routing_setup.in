@@ -35,6 +35,17 @@ fi
 # Set routing
 ip route replace table $ROUTING_TABLE $INSTANCE_NETWORK dev $GRE_INTERFACE
 
+# If we want to route all traffic back via the nbma we'll do it setting the
+# endpoint as the default gateway. The kernel will refuse to insert the default
+# route if the main routing table doesn't contain a route to it. Adding one and
+# removing it just after works.
+if [[ $ROUTEBACK -eq 1 && $AM_ENDPOINT -eq 0 ]]; then
+  # FIXME: /32 is not good for ipv6 addresses
+  ip route add $ENDPOINT_INTERNAL_IP/32 dev $GRE_INTERFACE
+  ip route replace table $ROUTING_TABLE default dev $GRE_INTERFACE via $ENDPOINT_INTERNAL_IP
+  ip route del $ENDPOINT_INTERNAL_IP/32 dev $GRE_INTERFACE
+fi
+
 # ip rules
 if [ -z "$(ip rule list | grep "lookup $ROUTING_TABLE")" ]; then
   ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
