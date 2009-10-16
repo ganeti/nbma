@@ -70,7 +70,7 @@ class NLDConfdCallback(object):
   """NLD callback for confd queries.
 
   """
-  def __init__(self):
+  def __init__(self, nld_config):
     self.dispatch_table = {
       gnt_constants.CONFD_REQ_NODE_PIP_LIST:
         self.UpdateNodeIPList,
@@ -79,12 +79,15 @@ class NLDConfdCallback(object):
       gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP:
         self.UpdateInstanceNodeMapping,
     }
+    self.nld_config = nld_config
 
   def UpdateNodeIPList(self, up):
     """Update dynamic iptables rules from the node list
 
     """
     node_list = up.server_reply.answer
+    node_list.extend(self.nld_config.endpoints)
+    logging.debug("Updating trusted NBMA nodes: %s" % node_list)
     iptables.UpdateIptablesRules(node_list)
 
   def UpdateInstanceIPList(self, up):
@@ -216,7 +219,7 @@ class NetworkLookupDaemon(object):
     mainloop = daemon.Mainloop()
     hmac_key = utils.ReadFile(options.hmac_file)
     mc_list = utils.ReadFile(options.mc_file).splitlines()
-    my_callback = NLDConfdCallback()
+    my_callback = NLDConfdCallback(self.config)
     callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
 
     cclient = confd.client.ConfdClient(hmac_key, mc_list,
