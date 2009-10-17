@@ -53,6 +53,10 @@ ENDPOINT_CONF_FILE=$1
 [[ -n "$ENDPOINT_EXTERNAL_IP" ]] || \
   fail "Missing ENDPOINT_EXTERNAL_IP in config file"
 
+NET_SUFFIX=${INSTANCE_NETWORK#*/}
+[[ "$NET_SUFFIX" != "+([:digit:])" ]]  || \
+  fail "Please specify INSTANCE_NETWORK in the format NETWORK/SUFFIX_LENGTH"
+
 AM_ENDPOINT=0
 ip addr show dev $ENDPOINT_NETDEV | grep -qF "$ENDPOINT_EXTERNAL_IP" && \
   AM_ENDPOINT=1

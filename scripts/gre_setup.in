@@ -33,7 +33,7 @@ ip tunnel add $GRE_INTERFACE mode gre key $GRE_KEY ttl $GRE_TTL \
 # If we are the endpoint configure the internal ip, otherwise set up the
 # neighbour table entry to reach it
 if [[ $AM_ENDPOINT -ne 0 ]]; then
-  ip addr add $ENDPOINT_INTERNAL_IP dev $GRE_INTERFACE
+  ip addr add $ENDPOINT_INTERNAL_IP/$NET_SUFFIX dev $GRE_INTERFACE
 else
   ip neigh replace $ENDPOINT_INTERNAL_IP lladdr $ENDPOINT_EXTERNAL_IP \
     nud permanent dev $GRE_INTERFACE
