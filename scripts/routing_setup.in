@@ -47,7 +47,10 @@ if [[ $ROUTEBACK -eq 1 && $AM_ENDPOINT -eq 0 ]]; then
 fi
 
 # ip rules
-if [[ -z "$(ip rule list | grep "lookup $ROUTING_TABLE")" ]]; then
+SET_RULES=0
+ip rule list | grep -q "lookup $ROUTING_TABLE$" || SET_RULES=1
+
+if [[ $SET_RULES -eq 1 ]]; then
   ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
   ip rule add from $INSTANCE_NETWORK table $ROUTING_TABLE
 fi
