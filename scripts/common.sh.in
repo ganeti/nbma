@@ -59,8 +59,9 @@ NET_SUFFIX=${INSTANCE_NETWORK#*/}
   fail "Please specify INSTANCE_NETWORK in the format NETWORK/SUFFIX_LENGTH"
 
 AM_ENDPOINT=0
-ip addr show dev $ENDPOINT_NETDEV | grep -qF "$ENDPOINT_EXTERNAL_IP" && \
-  AM_ENDPOINT=1
+ip addr show dev $ENDPOINT_NETDEV | \
+  grep -qF " $ENDPOINT_EXTERNAL_IP/"$'\n'" $ENDPOINT_EXTERNAL_IP " && \
+    AM_ENDPOINT=1
 
 # Endpoints cannot currently work with policy routing
 [[ $AM_ENDPOINT -ne 0 ]] && ROUTING_TABLE="main"
