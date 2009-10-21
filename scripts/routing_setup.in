@@ -45,7 +45,7 @@ fi
 
 # ip rules
 SET_RULES=0
-ip rule list | grep -q "lookup $ROUTING_TABLE$" || SET_RULES=1
+ip rule list | grep -q "lookup $ROUTING_TABLE[[:space:]]*$" || SET_RULES=1
 
 if [[ $SET_RULES -eq 1 ]]; then
   ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
