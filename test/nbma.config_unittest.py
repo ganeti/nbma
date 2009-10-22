@@ -25,25 +25,13 @@
 import unittest
 
 from nbma import config
+from ganeti import utils
 
 class TestBashFragmentConfigParser(unittest.TestCase):
 
   def setUp(self):
-    self.my_str = """
-# A bash script containing only variable declarations
-MYINT=2
-# comment
-MYSTRING1="foobar"
-MYSTRING2='foobar'
-
-MY_STRING2=ciao
-
-MYQUOTSTRING1="ci'ao"
-MYQUOTSTRING2='ci"ao'
-MYQUOTSTRING3=c'ia'o
-
-    """
     self.my_fname = "test/data/bash_var_fragment.sh"
+    self.my_str = utils.ReadFile(self.my_fname)
 
   def _testParser(self, parser, section):
     self.assert_(parser.has_section(section))
@@ -57,6 +45,12 @@ MYQUOTSTRING3=c'ia'o
     self.assertEquals(parser.get(section, "MYQUOTSTRING1"), "ci'ao")
     self.assertEquals(parser.get(section, "MYQUOTSTRING2"), "ci\"ao")
     self.assertEquals(parser.get(section, "MYQUOTSTRING3"), "c'ia'o")
+    self.assertEquals(parser.get(section, "MYARRAY1"), "( )")
+    self.assertEquals(parser.get(section, "MYARRAY2"), "(default)")
+    self.assertEquals(parser.get(section, "MYARRAY3"), \
+      "(192.168.43.0/24 192.168.44.0/24)")
+    self.assertEquals(parser.get(section, "MYARRAY4"), "( with a space )")
+
 
   def testStringLoad(self):
     cfg = config.BashFragmentConfigParser.LoadFragmentFromString(self.my_str)
