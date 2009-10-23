@@ -33,7 +33,8 @@ else
 fi
 
 # Set routing
-ip route replace table $ROUTING_TABLE $INSTANCE_NETWORK dev $GRE_INTERFACE
+ip route replace table $ROUTING_TABLE proto static $INSTANCE_NETWORK \
+  dev $GRE_INTERFACE
 
 # If we're not on the endpoint we'll have to choose which traffic to route back
 # directly, and which one on the nbma. We need to specify "onlink" to force the
@@ -41,11 +42,11 @@ ip route replace table $ROUTING_TABLE $INSTANCE_NETWORK dev $GRE_INTERFACE
 # endpoint ip/network on the gre interface.
 if [[ $AM_ENDPOINT -eq 0 ]]; then
   for net in "${DIRECTROUTES[@]}"; do
-    ip route replace table $ROUTING_TABLE throw $net
+    ip route replace table $ROUTING_TABLE proto static throw $net
   done
   for net in "${NBMAROUTES[@]}"; do
-    ip route replace table $ROUTING_TABLE $net dev $GRE_INTERFACE \
-      via $ENDPOINT_INTERNAL_IP onlink
+    ip route replace table $ROUTING_TABLE proto static $net \
+      dev $GRE_INTERFACE via $ENDPOINT_INTERNAL_IP onlink
   done
 fi
 
