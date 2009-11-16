@@ -58,12 +58,13 @@ gnt_constants.NLD = NLD
 gnt_constants.DAEMONS_LOGFILES[NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
 
 
-NODE_LIST_UPDATE_TIMEOUT=30
+NODE_LIST_UPDATE_TIMEOUT = 30
+MC_LIST_UPDATE_TIMEOUT = 120
 # For now we need a low number here, but in the future we'll rely on
 # invalidation. Until we have invalidation the instance will not be
 # accessible, when it changes node, for up to this number of seconds, plus the
 # time to get a confd response.
-INSTANCE_MAP_UPDATE_TIMEOUT=5
+INSTANCE_MAP_UPDATE_TIMEOUT = 5
 
 
 class NLDConfdCallback(object):
@@ -74,6 +75,8 @@ class NLDConfdCallback(object):
     self.dispatch_table = {
       gnt_constants.CONFD_REQ_NODE_PIP_LIST:
         self.UpdateNodeIPList,
+      gnt_constants.CONFD_REQ_MC_PIP_LIST:
+        self.UpdateMCIPList,
       gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST:
         self.UpdateInstanceIPList,
       gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP:
@@ -89,6 +92,15 @@ class NLDConfdCallback(object):
     node_list.extend(self.nld_config.endpoints)
     logging.debug("Updating trusted NBMA nodes: %s" % node_list)
     iptables.UpdateIptablesRules(node_list)
+
+  def UpdateMCIPList(self, up):
+    """Update dynamic iptables rules from the node list
+
+    """
+    mc_list = up.server_reply.answer
+    logging.debug("Updating confd peers: %s" % mc_list)
+    up.client.UpdatePeerList(mc_list)
+    # TODO: save updates list, but only on endpoints
 
   def UpdateInstanceIPList(self, up):
     for ip in up.server_reply.answer:
@@ -138,21 +150,29 @@ class NLDPeriodicUpdater(object):
     self.confd_client = confd_client
 
     self.node_timer_handle = None
+    self.mc_timer_handle = None
     self.instance_timer_handle = None
     self._EnableTimers(immediate_schedule=True)
 
   def _EnableTimers(self, immediate_schedule=False):
     timeout_update_nodes = NODE_LIST_UPDATE_TIMEOUT
+    timeout_update_mcs = MC_LIST_UPDATE_TIMEOUT
     timeout_update_instances = INSTANCE_MAP_UPDATE_TIMEOUT
 
     if immediate_schedule:
       timeout_update_nodes = 0
+      timeout_update_mcs = 0
       timeout_update_instances = 0
 
     if self.node_timer_handle is None:
       self.node_timer_handle = \
         self.mainloop.scheduler.enter(timeout_update_nodes,
                                       1, self.UpdateNodes, [])
+
+    if self.mc_timer_handle is None:
+      self.mc_timer_handle = \
+        self.mainloop.scheduler.enter(timeout_update_mcs,
+                                      1, self.UpdateMCs, [])
 
     if self.instance_timer_handle is None:
       self.instance_timer_handle = \
@@ -170,6 +190,17 @@ class NLDPeriodicUpdater(object):
     logging.debug("Sending node ip list request")
     req = confd.client.ConfdClientRequest(
       type=gnt_constants.CONFD_REQ_NODE_PIP_LIST)
+    self.confd_client.SendRequest(req)
+
+  def UpdateMCs(self):
+    """Periodically update the MC list.
+
+    """
+    self.mc_timer_handle = None
+    self._EnableTimers()
+    logging.debug("Sending mc ip list request")
+    req = confd.client.ConfdClientRequest(
+      type=gnt_constants.CONFD_REQ_MC_PIP_LIST)
     self.confd_client.SendRequest(req)
 
   def UpdateInstances(self):
