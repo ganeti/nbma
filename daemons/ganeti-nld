@@ -100,7 +100,9 @@ class NLDConfdCallback(object):
     mc_list = up.server_reply.answer
     logging.debug("Updating confd peers: %s" % mc_list)
     up.client.UpdatePeerList(mc_list)
-    # TODO: save updates list, but only on endpoints
+    if self.nld_config.out_mc_file:
+      utils.WriteFile(self.nld_config.out_mc_file,
+                      data="%s\n" % "\n".join(mc_list))
 
   def UpdateInstanceIPList(self, up):
     for ip in up.server_reply.answer:
@@ -254,6 +256,9 @@ class NetworkLookupDaemon(object):
       print >> sys.stderr, "Configuration error: %s" % err
       sys.exit(gnt_constants.EXIT_FAILURE)
 
+    if options.update_mc_file:
+      self.config.out_mc_file = options.mc_file
+
   def ExecNld(self, options, args):
     """Main confd function, executed with PID file held
 
@@ -286,6 +291,9 @@ def main():
   parser.add_option("--mc-list", dest="mc_file",
                     help="Master Candidates addresses file",
                     default=default_mclist, type="string")
+  parser.add_option("--update-mc-file", dest="update_mc_file",
+                    help="Periodically update the MC file",
+                    default=False, action="store_true")
 
   dirs = [(val, gnt_constants.RUN_DIRS_MODE)
           for val in gnt_constants.SUB_RUN_DIRS]

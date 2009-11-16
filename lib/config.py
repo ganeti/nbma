@@ -81,6 +81,7 @@ class BashFragmentConfigParser(objects.SerializableConfigParser):
 class NLDConfig(objects.ConfigObject):
   __slots__ = objects.ConfigObject.__slots__ + [
     "endpoints",
+    "out_mc_file",
     ]
 
   @staticmethod
