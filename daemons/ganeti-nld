@@ -126,6 +126,11 @@ class NLDConfdCallback(object):
 
     """
     if up.type == confd.client.UPCALL_REPLY:
+      if up.server_reply.status != gnt_constants.CONFD_REPL_STATUS_OK:
+        logging.warning("Received error '%s' to confd request %s" %
+                        (up.server_reply.answer, up.orig_request))
+        return
+
       rtype = up.orig_request.type
       try:
         dispatcher = self.dispatch_table[rtype]
