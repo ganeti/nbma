@@ -141,21 +141,30 @@ class NLDConfdCallback(object):
         logging.warning("Unhandled confd response type: %s" % rtype)
       dispatcher(up)
 
+
 class NLDPeriodicUpdater(object):
   """Update network lookup tables periodically
 
   """
-  def __init__(self, mainloop, confd_client):
+  def __init__(self, mainloop, nld_config, hmac_key, mc_list):
     """Constructor for NLDPeriodicUpdater
 
     @type mainloop: L{daemon.Mainloop}
     @param mainloop: ganeti-nld mainloop
-    @type confd_client: L{ganeti.confd.client.ConfdClient}
-    @param confd_client: ganeti-nld confd client
+    @type nld_config: L{lib.config.NLDConfig}
+    @param nld_config: ganeti-nld configuration
+    @type hmac_key: string
+    @param hmac_key: hmac key to talk to the cluster
+    @type mc_list: list of strings
+    @param mc_list: list of master candidates (confd peers)
 
     """
     self.mainloop = mainloop
-    self.confd_client = confd_client
+    self.nld_config = nld_config
+    my_callback = NLDConfdCallback(nld_config)
+    callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
+    self.confd_client = confd.client.ConfdClient(hmac_key, mc_list,
+                                                 callback, logger=logging)
 
     self.node_timer_handle = None
     self.mc_timer_handle = None
@@ -267,12 +276,7 @@ class NetworkLookupDaemon(object):
     mainloop = daemon.Mainloop()
     hmac_key = utils.ReadFile(options.hmac_file)
     mc_list = utils.ReadFile(options.mc_file).splitlines()
-    my_callback = NLDConfdCallback(self.config)
-    callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
-
-    cclient = confd.client.ConfdClient(hmac_key, mc_list,
-                                       callback, logger=logging)
-    updater = NLDPeriodicUpdater(mainloop, cclient)
+    updater = NLDPeriodicUpdater(mainloop, self.config, hmac_key, mc_list)
     mainloop.Run()
 
 
