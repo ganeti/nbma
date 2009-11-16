@@ -139,18 +139,24 @@ class NLDPeriodicUpdater(object):
 
     self.node_timer_handle = None
     self.instance_timer_handle = None
-    self.UpdateNodes()
-    self.UpdateInstances()
+    self._EnableTimers(immediate_schedule=True)
 
-  def _EnableTimers(self):
+  def _EnableTimers(self, immediate_schedule=False):
+    timeout_update_nodes = NODE_LIST_UPDATE_TIMEOUT
+    timeout_update_instances = INSTANCE_MAP_UPDATE_TIMEOUT
+
+    if immediate_schedule:
+      timeout_update_nodes = 0
+      timeout_update_instances = 0
+
     if self.node_timer_handle is None:
       self.node_timer_handle = \
-        self.mainloop.scheduler.enter(NODE_LIST_UPDATE_TIMEOUT,
+        self.mainloop.scheduler.enter(timeout_update_nodes,
                                       1, self.UpdateNodes, [])
 
     if self.instance_timer_handle is None:
       self.instance_timer_handle = \
-        self.mainloop.scheduler.enter(INSTANCE_MAP_UPDATE_TIMEOUT,
+        self.mainloop.scheduler.enter(timeout_update_instances,
                                       1, self.UpdateInstances, [])
 
   def UpdateNodes(self):
