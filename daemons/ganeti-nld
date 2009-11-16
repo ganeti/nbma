@@ -106,20 +106,22 @@ class NLDConfdCallback(object):
                       data="%s\n" % "\n".join(mc_list))
 
   def UpdateInstanceIPList(self, up):
+    link = up.orig_request.query
     for ip in up.server_reply.answer:
       req = confd.client.ConfdClientRequest(
         type=gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP,
         query=ip,
         )
-      up.client.SendRequest(req)
+      up.client.SendRequest(req, args=link)
 
   def UpdateInstanceNodeMapping(self, up):
     instance = up.orig_request.query
     node = up.server_reply.answer
-    # FIXME: unhardcode gtun0
+    link = up.extra_args
+    tunnel = self.nld_config.tables_tunnels[link]
     networktables.UpdateNetworkEntry(instance, node,
                                      networktables.NEIGHBOUR_CONTEXT,
-                                     "gtun0")
+                                     tunnel)
 
   def __call__(self, up):
     """Filtering callback
@@ -229,8 +231,10 @@ class NLDPeriodicUpdater(object):
     self.instance_timer_handle = None
     self._EnableTimers()
     logging.debug("Sending instance ip list request")
-    req = confd.client.ConfdClientRequest(
-      type=gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST)
+    for link in self.nld_config.tables_tunnels:
+      req = confd.client.ConfdClientRequest(
+              type=gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST,
+              query=link)
     self.confd_client.SendRequest(req)
 
 
