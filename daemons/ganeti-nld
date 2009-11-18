@@ -155,7 +155,7 @@ class NLDConfdCallback(object):
                                        tunnel)
 
   def __call__(self, up):
-    """Filtering callback
+    """NLD confd callback.
 
     @type up: L{ConfdUpcallPayload}
     @param up: upper callback
