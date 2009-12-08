@@ -107,21 +107,38 @@ class NLDConfdCallback(object):
 
   def UpdateInstanceIPList(self, up):
     link = up.orig_request.query
-    for ip in up.server_reply.answer:
-      req = confd.client.ConfdClientRequest(
-        type=gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP,
-        query=ip,
-        )
-      up.client.SendRequest(req, args=link)
+    iplist = up.server_reply.answer
+
+    mapping_query={
+        gnt_constants.CONFD_REQQ_IPLIST: iplist,
+        gnt_constants.CONFD_REQQ_LINK: link,
+        }
+
+    req = confd.client.ConfdClientRequest(
+      type=gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP,
+      query=mapping_query,
+      )
+    up.client.SendRequest(req, args=link)
 
   def UpdateInstanceNodeMapping(self, up):
-    instance = up.orig_request.query
-    node = up.server_reply.answer
-    link = up.extra_args
-    tunnel = self.nld_config.tables_tunnels[link]
-    networktables.UpdateNetworkEntry(instance, node,
-                                     networktables.NEIGHBOUR_CONTEXT,
-                                     tunnel)
+    instances = up.orig_request.query[gnt_constants.CONFD_REQQ_IPLIST]
+    link = up.orig_request.query[gnt_constants.CONFD_REQQ_LINK]
+    replies = up.server_reply.answer
+
+    for instance, reply in zip(instances, replies):
+      status, node = reply
+      if status != gnt_constants.CONFD_REPL_STATUS_OK:
+        logging.debug("Error %s retrieving node for instance %s: %s"
+          % (status, instance, node))
+        continue
+      if not node:
+        logging.debug("Empty answer retrieving node for instance %s"
+          % instance)
+        continue
+      tunnel = self.nld_config.tables_tunnels[link]
+      networktables.UpdateNetworkEntry(instance, node,
+                                       networktables.NEIGHBOUR_CONTEXT,
+                                       tunnel)
 
   def __call__(self, up):
     """Filtering callback
