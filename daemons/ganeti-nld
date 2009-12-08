@@ -88,10 +88,11 @@ class NLDConfdCallback(object):
     """Update dynamic iptables rules from the node list
 
     """
-    node_list = up.server_reply.answer
-    node_list.extend(self.nld_config.endpoints)
-    logging.debug("Updating trusted NBMA nodes: %s" % node_list)
-    iptables.UpdateIptablesRules(node_list)
+    peer_list = []
+    peer_list.extend(up.server_reply.answer)
+    peer_list.extend(self.nld_config.endpoints)
+    logging.debug("Updating trusted NBMA nodes: %s" % peer_list)
+    iptables.UpdateIptablesRules(peer_list)
 
   def UpdateMCIPList(self, up):
     """Update dynamic iptables rules from the node list
