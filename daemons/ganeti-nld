@@ -83,11 +83,17 @@ class NLDConfdCallback(object):
         self.UpdateInstanceNodeMapping,
     }
     self.nld_config = nld_config
+    self.cached_node_list = None
+    self.cached_mc_list = None
+    self.cached_instance_node_map = {}
 
   def UpdateNodeIPList(self, up):
     """Update dynamic iptables rules from the node list
 
     """
+    if up.server_reply.answer == self.cached_node_list:
+      return
+    self.cached_node_list = up.server_reply.answer
     peer_list = []
     peer_list.extend(up.server_reply.answer)
     peer_list.extend(self.nld_config.endpoints)
@@ -98,6 +104,9 @@ class NLDConfdCallback(object):
     """Update dynamic iptables rules from the node list
 
     """
+    if up.server_reply.answer == self.cached_mc_list:
+      return
+    self.cached_mc_list = up.server_reply.answer
     mc_list = up.server_reply.answer
     logging.debug("Updating confd peers: %s" % mc_list)
     up.client.UpdatePeerList(mc_list)
@@ -135,6 +144,11 @@ class NLDConfdCallback(object):
         logging.debug("Empty answer retrieving node for instance %s"
           % instance)
         continue
+      if link not in self.cached_instance_node_map:
+        self.cached_instance_node_map[link] = {}
+      if self.cached_instance_node_map[link].get(instance, None) == node:
+        continue
+      self.cached_instance_node_map[link][instance] = node
       tunnel = self.nld_config.tables_tunnels[link]
       networktables.UpdateNetworkEntry(instance, node,
                                        networktables.NEIGHBOUR_CONTEXT,
