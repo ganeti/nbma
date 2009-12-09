@@ -138,11 +138,11 @@ class NLDConfdCallback(object):
       status, node = reply
       if status != gnt_constants.CONFD_REPL_STATUS_OK:
         logging.debug("Error %s retrieving node for instance %s: %s"
-          % (status, instance, node))
+                      % (status, instance, node))
         continue
       if not node:
         logging.debug("Empty answer retrieving node for instance %s"
-          % instance)
+                      % instance)
         continue
       if link not in self.cached_instance_node_map:
         self.cached_instance_node_map[link] = {}
