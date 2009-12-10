@@ -41,6 +41,7 @@ from ganeti_nbma import constants
 from ganeti_nbma import iptables
 from ganeti_nbma import networktables
 from ganeti_nbma import config
+from ganeti_nbma import server
 
 from ganeti import confd
 from ganeti import constants as gnt_constants
@@ -71,7 +72,7 @@ class NLDConfdCallback(object):
   """NLD callback for confd queries.
 
   """
-  def __init__(self, nld_config):
+  def __init__(self, name, nld_config, peer_manager):
     self.dispatch_table = {
       gnt_constants.CONFD_REQ_NODE_PIP_LIST:
         self.UpdateNodeIPList,
@@ -82,8 +83,10 @@ class NLDConfdCallback(object):
       gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP:
         self.UpdateInstanceNodeMapping,
     }
+    self.name = name
     self.nld_config = nld_config
-    self.cached_node_list = None
+    self.peer_manager = peer_manager
+    self.peer_manager.RegisterPeerSet(name)
     self.cached_mc_list = None
     self.cached_instance_node_map = {}
 
@@ -91,14 +94,7 @@ class NLDConfdCallback(object):
     """Update dynamic iptables rules from the node list
 
     """
-    if up.server_reply.answer == self.cached_node_list:
-      return
-    self.cached_node_list = up.server_reply.answer
-    peer_list = []
-    peer_list.extend(up.server_reply.answer)
-    peer_list.extend(self.nld_config.endpoints)
-    logging.debug("Updating trusted NBMA nodes: %s" % peer_list)
-    iptables.UpdateIptablesRules(peer_list)
+    self.peer_manager.UpdatePeerSetNodes(self.name, up.server_reply.answer)
 
   def UpdateMCIPList(self, up):
     """Update dynamic iptables rules from the node list
@@ -179,9 +175,12 @@ class NLDPeriodicUpdater(object):
   """Update network lookup tables periodically
 
   """
-  def __init__(self, mainloop, nld_config, hmac_key, mc_list):
+  def __init__(self, name, mainloop, nld_config,
+               hmac_key, mc_list, peer_manager):
     """Constructor for NLDPeriodicUpdater
 
+    @type name: string
+    @param name: unique name associated to this updater
     @type mainloop: L{daemon.Mainloop}
     @param mainloop: ganeti-nld mainloop
     @type nld_config: L{lib.config.NLDConfig}
@@ -190,11 +189,13 @@ class NLDPeriodicUpdater(object):
     @param hmac_key: hmac key to talk to the cluster
     @type mc_list: list of strings
     @param mc_list: list of master candidates (confd peers)
+    @type peer_manager: L{server.PeerSetManager}
+    @param peer_manager: ganeti-nld peer manager
 
     """
     self.mainloop = mainloop
     self.nld_config = nld_config
-    my_callback = NLDConfdCallback(nld_config)
+    my_callback = NLDConfdCallback(name, nld_config, peer_manager)
     callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
     self.confd_client = confd.client.ConfdClient(hmac_key, mc_list,
                                                  callback, logger=logging)
@@ -309,9 +310,14 @@ class NetworkLookupDaemon(object):
 
     """
     mainloop = daemon.Mainloop()
+    peer_set_manager = server.PeerSetManager()
+    peer_set_manager.RegisterPeerSet("endpoints")
+    peer_set_manager.UpdatePeerSetNodes("endpoints", self.config.endpoints)
     hmac_key = utils.ReadFile(options.hmac_file)
     mc_list = utils.ReadFile(options.mc_file).splitlines()
-    updater = NLDPeriodicUpdater(mainloop, self.config, hmac_key, mc_list)
+    #FIXME: Create a unique string per cluster, when we'll have more than one
+    updater = NLDPeriodicUpdater("global", mainloop, self.config,
+                                 hmac_key, mc_list, peer_set_manager)
     mainloop.Run()
 
 
