@@ -29,7 +29,8 @@ pkgpython_PYTHON = \
 	lib/constants.py \
 	lib/config.py \
 	lib/iptables.py \
-	lib/networktables.py
+	lib/networktables.py \
+	lib/server.py
 
 nodist_pkgpython_PYTHON = \
 	lib/_autoconf.py
