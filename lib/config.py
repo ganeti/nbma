@@ -110,17 +110,21 @@ class NLDConfig(objects.ConfigObject):
 
       if parser.has_option(DEFAULT_SECTION, TABLE_KEY):
         table = parser.get(DEFAULT_SECTION, TABLE_KEY)
+        has_table = True
       else:
         table = constants.DEFAULT_ROUTING_TABLE
+        has_table = False
 
       if parser.has_option(DEFAULT_SECTION, INTERFACE_KEY):
         interface = parser.get(DEFAULT_SECTION, INTERFACE_KEY)
+        has_interface = True
       else:
         interface = constants.DEFAULT_NEIGHBOUR_INTERFACE
+        has_interface = False
 
-      if table not in tables_map:
+      if (has_table or has_interface) and table not in tables_map:
         tables_map[table] = interface
-      elif tables_map[table] != interface:
+      elif (has_table or has_interface) and tables_map[table] != interface:
         raise errors.ConfigurationError('Mapping for table %s already declared'
           ' (was: %s, new one: %s)' % (table, tables_map[table], interface))
 
@@ -128,7 +132,8 @@ class NLDConfig(objects.ConfigObject):
       raise errors.ConfigurationError('No endpoints found')
 
     if not tables_map:
-      raise errors.ConfigurationError('No table to interface association found')
+      tables_map[constants.DEFAULT_ROUTING_TABLE] = \
+        constants.DEFAULT_NEIGHBOUR_INTERFACE
 
     return NLDConfig(endpoints=endpoints, tables_tunnels=tables_map)
 
