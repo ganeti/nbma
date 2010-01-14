@@ -94,12 +94,14 @@ class NLDConfdCallback(object):
     """Update dynamic iptables rules from the node list
 
     """
+    logging.debug("Received node ip list reply")
     self.peer_manager.UpdatePeerSetNodes(self.name, up.server_reply.answer)
 
   def UpdateMCIPList(self, up):
     """Update dynamic iptables rules from the node list
 
     """
+    logging.debug("Received mc ip list reply")
     if up.server_reply.answer == self.cached_mc_list:
       return
     self.cached_mc_list = up.server_reply.answer
@@ -111,6 +113,10 @@ class NLDConfdCallback(object):
                       data="%s\n" % "\n".join(mc_list))
 
   def UpdateInstanceIPList(self, up):
+    """Update the instances list
+
+    """
+    logging.debug("Received instance ip list reply, and sending mapping query")
     link = up.orig_request.query
     iplist = up.server_reply.answer
 
@@ -126,6 +132,10 @@ class NLDConfdCallback(object):
     up.client.SendRequest(req, args=link)
 
   def UpdateInstanceNodeMapping(self, up):
+    """Update the instances mapping
+
+    """
+    logging.debug("Received instance node mapping reply")
     instances = up.orig_request.query[gnt_constants.CONFD_REQQ_IPLIST]
     link = up.orig_request.query[gnt_constants.CONFD_REQQ_LINK]
     replies = up.server_reply.answer
