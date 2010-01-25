@@ -81,7 +81,7 @@ class BashFragmentConfigParser(objects.SerializableConfigParser):
 
 
 class NLDConfig(objects.ConfigObject):
-  __slots__ = objects.ConfigObject.__slots__ + [
+  __slots__ = [
     "endpoints",
     "out_mc_file",
     "tables_tunnels",
@@ -136,4 +136,3 @@ class NLDConfig(objects.ConfigObject):
         constants.DEFAULT_NEIGHBOUR_INTERFACE
 
     return NLDConfig(endpoints=endpoints, tables_tunnels=tables_map)
-
