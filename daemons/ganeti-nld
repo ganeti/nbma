@@ -30,15 +30,16 @@ Ganeti, on the cluster hmac key and master candidate list being available.
 
 """
 
+# pylint: disable-msg=C0103
+# C0103: Invalid name "ganeti-nld"
+
 import os
 import sys
 import logging
-import asyncore
 
 from optparse import OptionParser
 
 from ganeti_nbma import constants
-from ganeti_nbma import iptables
 from ganeti_nbma import networktables
 from ganeti_nbma import config
 from ganeti_nbma import server
@@ -49,8 +50,6 @@ from ganeti import daemon
 from ganeti import ssconf
 from ganeti import utils
 from ganeti import errors
-
-import ganeti.confd.client
 
 
 # Injecting ourselves in the ganeti constants
@@ -106,13 +105,14 @@ class NLDConfdCallback(object):
       return
     self.cached_mc_list = up.server_reply.answer
     mc_list = up.server_reply.answer
-    logging.debug("Updating confd peers: %s" % mc_list)
+    logging.debug("Updating confd peers: %s", mc_list)
     up.client.UpdatePeerList(mc_list)
     if self.nld_config.out_mc_file:
       utils.WriteFile(self.nld_config.out_mc_file,
                       data="%s\n" % "\n".join(mc_list))
 
-  def UpdateInstanceIPList(self, up):
+  @staticmethod
+  def UpdateInstanceIPList(up):
     """Update the instances list
 
     """
@@ -120,10 +120,10 @@ class NLDConfdCallback(object):
     link = up.orig_request.query
     iplist = up.server_reply.answer
 
-    mapping_query={
-        gnt_constants.CONFD_REQQ_IPLIST: iplist,
-        gnt_constants.CONFD_REQQ_LINK: link,
-        }
+    mapping_query = {
+      gnt_constants.CONFD_REQQ_IPLIST: iplist,
+      gnt_constants.CONFD_REQQ_LINK: link,
+      }
 
     req = confd.client.ConfdClientRequest(
       type=gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP,
@@ -143,12 +143,12 @@ class NLDConfdCallback(object):
     for instance, reply in zip(instances, replies):
       status, node = reply
       if status != gnt_constants.CONFD_REPL_STATUS_OK:
-        logging.debug("Error %s retrieving node for instance %s: %s"
-                      % (status, instance, node))
+        logging.debug("Error %s retrieving node for instance %s: %s",
+                      status, instance, node)
         continue
       if not node:
-        logging.debug("Empty answer retrieving node for instance %s"
-                      % instance)
+        logging.debug("Empty answer retrieving node for instance %s",
+                      instance)
         continue
       if link not in self.cached_instance_node_map:
         self.cached_instance_node_map[link] = {}
@@ -169,15 +169,15 @@ class NLDConfdCallback(object):
     """
     if up.type == confd.client.UPCALL_REPLY:
       if up.server_reply.status != gnt_constants.CONFD_REPL_STATUS_OK:
-        logging.warning("Received error '%s' to confd request %s" %
-                        (up.server_reply.answer, up.orig_request))
+        logging.warning("Received error '%s' to confd request %s",
+                        up.server_reply.answer, up.orig_request)
         return
 
       rtype = up.orig_request.type
       try:
         dispatcher = self.dispatch_table[rtype]
-      except KeyError, err:
-        logging.warning("Unhandled confd response type: %s" % rtype)
+      except KeyError, err: # pylint: disable-msg=W0612
+        logging.warning("Unhandled confd response type: %s", rtype)
       dispatcher(up)
 
 
@@ -185,7 +185,7 @@ class NLDPeriodicUpdater(object):
   """Update network lookup tables periodically
 
   """
-  def __init__(self, name, mainloop, nld_config,
+  def __init__(self, name, mainloop, nld_config, # pylint: disable-msg=R0913
                hmac_key, mc_list, peer_manager):
     """Constructor for NLDPeriodicUpdater
 
@@ -216,6 +216,13 @@ class NLDPeriodicUpdater(object):
     self._EnableTimers(immediate_schedule=True)
 
   def _EnableTimers(self, immediate_schedule=False):
+    """Schedule the update events on the main loop.
+
+    @type immediate_schedule: boolean
+    @param immediate_schedule: If set to True, all unscheduled events get
+        scheduled with no delay.
+
+    """
     timeout_update_nodes = NODE_LIST_UPDATE_TIMEOUT
     timeout_update_mcs = MC_LIST_UPDATE_TIMEOUT
     timeout_update_instances = INSTANCE_MAP_UPDATE_TIMEOUT
@@ -304,6 +311,8 @@ class NetworkLookupDaemon(object):
       sys.exit(gnt_constants.EXIT_FAILURE)
 
     try:
+      # pylint: disable-msg=W0201
+      # Attribute 'config' defined outside __init__
       self.config = config.NLDConfig.FromConfigFiles(args)
     except EnvironmentError, err:
       print >> sys.stderr, "Error loading config: %s" % err
@@ -315,7 +324,7 @@ class NetworkLookupDaemon(object):
     if options.update_mc_file:
       self.config.out_mc_file = options.mc_file
 
-  def ExecNld(self, options, args):
+  def ExecNld(self, options, args): # pylint: disable-msg=W0613
     """Main confd function, executed with PID file held
 
     """
@@ -326,8 +335,8 @@ class NetworkLookupDaemon(object):
     hmac_key = utils.ReadFile(options.hmac_file)
     mc_list = utils.ReadFile(options.mc_file).splitlines()
     #FIXME: Create a unique string per cluster, when we'll have more than one
-    updater = NLDPeriodicUpdater("global", mainloop, self.config,
-                                 hmac_key, mc_list, peer_set_manager)
+    NLDPeriodicUpdater("global", mainloop, self.config,
+                       hmac_key, mc_list, peer_set_manager)
     mainloop.Run()
 
 
