@@ -59,9 +59,17 @@ NLD = "ganeti-nld"
 gnt_constants.NLD = NLD
 gnt_constants.DAEMONS_LOGFILES[NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
 
-
+# Node list update period (seconds)
 NODE_LIST_UPDATE_TIMEOUT = 30
+
+# Master candidate update period (seconds)
 MC_LIST_UPDATE_TIMEOUT = 120
+
+# Master node IP update period (seconds)
+MASTER_UPDATE_TIMEOUT = 30
+
+# Instance map update period (seconds)
+#
 # For now we need a low number here, but in the future we'll rely on
 # invalidation. Until we have invalidation the instance will not be
 # accessible, when it changes node, for up to this number of seconds, plus the
@@ -83,6 +91,8 @@ class NLDConfdCallback(object):
         self.UpdateInstanceIPList,
       gnt_constants.CONFD_REQ_NODE_PIP_BY_INSTANCE_IP:
         self.UpdateInstanceNodeMapping,
+      gnt_constants.CONFD_REQ_CLUSTER_MASTER:
+        self.UpdateMasterNodeIP,
     }
     self.name = name
     self.nld_config = nld_config
@@ -90,6 +100,8 @@ class NLDConfdCallback(object):
     self.peer_manager.RegisterPeerSet(name)
     self.cached_mc_list = None
     self.cached_instance_node_map = {}
+    self.cached_master_ip = None
+    self.cached_master_node_ip = None
 
   def UpdateNodeIPList(self, up):
     """Update dynamic iptables rules from the node list
@@ -162,6 +174,38 @@ class NLDConfdCallback(object):
                                        networktables.NEIGHBOUR_CONTEXT,
                                        tunnel)
 
+  def UpdateMasterNodeIP(self, up):
+    """Update the IP address of the master node
+
+    """
+    master_ip, master_node_ip = up.server_reply.answer
+    logging.debug("Received master node IP reply. Master IP: %s,"
+                  " master node IP: %s", master_ip, master_node_ip)
+
+    master_route_changed = False
+
+    if master_ip != self.cached_master_ip:
+      master_route_changed = True
+      if self.cached_master_ip is None:
+        self.cached_master_ip = master_ip
+      else:
+        logging.warning("Master IP address changed (old: %s, new: %s)."
+                        " This is unexpected.",
+                        master_ip, self.cached_master_ip)
+
+    if master_node_ip != self.cached_master_node_ip:
+      master_route_changed = True
+      self.cached_master_node_ip = master_node_ip
+
+    if master_route_changed:
+      # TODO: we are assuming here that the default neighbour interface
+      # is the correct one to use, but this is only valid for single-NBMA
+      # setups. Will have to replace this when we introduce support for
+      # multiple NBMA networks.
+      networktables.UpdateNetworkEntry(master_ip, master_node_ip,
+                                       networktables.NEIGHBOUR_CONTEXT,
+                                       constants.DEFAULT_NEIGHBOUR_INTERFACE)
+
   def __call__(self, up):
     """NLD confd callback.
 
@@ -215,6 +259,7 @@ class NLDPeriodicUpdater(object):
     self.node_timer_handle = None
     self.mc_timer_handle = None
     self.instance_timer_handle = None
+    self.master_timer_handle = None
     self._EnableTimers(immediate_schedule=True)
 
   def _EnableTimers(self, immediate_schedule=False):
@@ -228,11 +273,13 @@ class NLDPeriodicUpdater(object):
     timeout_update_nodes = NODE_LIST_UPDATE_TIMEOUT
     timeout_update_mcs = MC_LIST_UPDATE_TIMEOUT
     timeout_update_instances = INSTANCE_MAP_UPDATE_TIMEOUT
+    timeout_update_master = MASTER_UPDATE_TIMEOUT
 
     if immediate_schedule:
       timeout_update_nodes = 0
       timeout_update_mcs = 0
       timeout_update_instances = 0
+      timeout_update_master = 0
 
     if self.node_timer_handle is None:
       self.node_timer_handle = \
@@ -248,6 +295,11 @@ class NLDPeriodicUpdater(object):
       self.instance_timer_handle = \
         self.mainloop.scheduler.enter(timeout_update_instances,
                                       1, self.UpdateInstances, [])
+
+    if self.master_timer_handle is None:
+      self.master_timer_handle = \
+        self.mainloop.scheduler.enter(timeout_update_master,
+                                      1, self.UpdateMaster, [])
 
   def UpdateNodes(self):
     """Periodically update the node list.
@@ -286,6 +338,25 @@ class NLDPeriodicUpdater(object):
       req = confd.client.ConfdClientRequest(
               type=gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST,
               query=link)
+    self.confd_client.SendRequest(req)
+
+  def UpdateMaster(self):
+    """Periodically update the master node IP.
+
+    """
+    self.master_timer_handle = None
+    self._EnableTimers()
+    logging.debug("Sending master node ip request")
+    query = {
+      gnt_constants.CONFD_REQQ_FIELDS: (
+        gnt_constants.CONFD_REQFIELD_IP,
+        gnt_constants.CONFD_REQFIELD_MNODE_PIP,
+        )
+      }
+    req = confd.client.ConfdClientRequest(
+      type=gnt_constants.CONFD_REQ_CLUSTER_MASTER,
+      query=query
+      )
     self.confd_client.SendRequest(req)
 
 
