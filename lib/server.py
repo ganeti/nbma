@@ -57,8 +57,8 @@ class PeerSetManager(object):
     global_peer_list = []
     for peer_list in self._peer_sets.values():
       global_peer_list.extend(peer_list)
-    logging.debug("Updating trusted NBMA nodes: %s" % global_peer_list)
-    iptables.UpdateIptablesRules(peer_list)
+    logging.debug("Updating trusted NBMA nodes: %s", global_peer_list)
+    iptables.UpdateIptablesRules(global_peer_list)
 
   def UpdatePeerSetNodes(self, name, nodes):
     """Update a single set peer list, and keep a cache
@@ -77,4 +77,3 @@ class PeerSetManager(object):
       return
     self._peer_sets[name] = nodes
     self._UpdateIptablesRules()
-

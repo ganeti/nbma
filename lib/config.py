@@ -18,7 +18,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
+"""Module for handling NLD configuration settings
+
+"""
+
 import re
+
+from ganeti_nbma import constants
 
 from ganeti import objects
 from ganeti import utils
@@ -27,10 +33,10 @@ from ganeti import errors
 from cStringIO import StringIO
 
 
-DEFAULT_SECTION="default"
-ENDPOINT_EXTIP_KEY="endpoint_external_ip"
-INTERFACE_KEY="gre_interface"
-TABLE_KEY="routing_table"
+DEFAULT_SECTION = "default"
+ENDPOINT_EXTIP_KEY = "endpoint_external_ip"
+INTERFACE_KEY = "gre_interface"
+TABLE_KEY = "routing_table"
 
 
 class BashFragmentConfigParser(objects.SerializableConfigParser):
@@ -44,18 +50,18 @@ class BashFragmentConfigParser(objects.SerializableConfigParser):
   _QUOTE_RE = re.compile("^(('.*')|(\".*\"))$")
 
   @classmethod
-  def LoadFragmentFromString(cls, str, section=DEFAULT_SECTION):
+  def LoadFragmentFromString(cls, string, section=DEFAULT_SECTION):
     """Load a bash variable fragment as an ini config file
 
-    @type str: string
-    @param str: bash variable declaration fragment in string format
+    @type string: string
+    @param string: bash variable declaration fragment in string format
     @type section: string
     @keyword section: section name to prepend to the fragment
 
     """
     buf = StringIO()
     buf.write("[%s]\n" % section)
-    buf.write(str)
+    buf.write(string)
     ini_string = buf.getvalue()
     parser = BashFragmentConfigParser.Loads(ini_string)
     for option in parser.options(section):

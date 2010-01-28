@@ -35,6 +35,8 @@ the filter table containing this kind of rules: "-j CHAINNAME"
 
 
 import random
+# pylint: disable-msg=W0402
+# Uses of a deprecated module 'string'
 import string
 import netfilter.table
 import netfilter.rule
@@ -48,17 +50,17 @@ _CHAIN_TRUST = "GNT_TRUST"
 _CHAIN_NAME_LEN = 30
 
 
-def _GenRandomString(len):
+def _GenRandomString(length):
   """Generate a random string of the given length.
 
-  @type len: int
-  @param len: length of random string
+  @type length: int
+  @param length: length of random string
 
   @rtype: str
   @return: the random suffix
 
   """
-  return "".join(random.Random().sample(string.lowercase, len))
+  return "".join(random.Random().sample(string.lowercase, length))
 
 
 def CheckIptablesChain(table_name, chain_name):
@@ -89,6 +91,8 @@ def CheckIptablesChain(table_name, chain_name):
     if len(rule_args) != 2:
       raise errors.ConfigurationError("In %s non-well formed rule: %r" %
                                       (chain_name, rule_args))
+    # pylint: disable-msg=W0612
+    # Unused variable 'dest'
     (jump, dest) = rule_args
     if jump != "-j":
       raise errors.ConfigurationError("In %s non-well formed rule: %r" %
@@ -125,7 +129,7 @@ def UpdateIptablesRules(ip_addresses, table_name=_TABLE_FILTER,
   # Create new IPs chain
   ips_prefix = "%s_IPS_" % trust_chain
   ips_suffix = _GenRandomString(chain_name_len - len(ips_prefix))
-  new_ips = "%s%s" % (ips_prefix,ips_suffix)
+  new_ips = "%s%s" % (ips_prefix, ips_suffix)
   try:
     table.create_chain(new_ips)
     try:
@@ -152,5 +156,3 @@ def UpdateIptablesRules(ip_addresses, table_name=_TABLE_FILTER,
       table.delete_chain(old_chain)
     except netfilter.table.IptablesError, err:
       raise errors.CommandError("Cannot remove old IPs tables: %s" % err)
-
-

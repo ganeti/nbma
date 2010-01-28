@@ -18,11 +18,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
+"""Module for holding Ganeti NBMA related constants."""
+
+
 from ganeti_nbma import _autoconf
 
 RELEASE_VERSION = _autoconf.PACKAGE_VERSION
 CONF_DIR = _autoconf.PKGSYSCONFDIR
 DEFAULT_CONF_FILE = CONF_DIR + "/common.conf"
 
-DEFAULT_ROUTING_TABLE="100"
-DEFAULT_NEIGHBOUR_INTERFACE="gtun0"
+DEFAULT_ROUTING_TABLE = "100"
+DEFAULT_NEIGHBOUR_INTERFACE = "gtun0"
