@@ -21,10 +21,12 @@
 
 """Script for unittesting the config module"""
 
+# Disable 'Invalid name' lint warning
+# pylint: disable-msg=C0103
 
 import unittest
 
-from nbma import config
+from ganeti_nbma import config
 from ganeti import utils
 
 class TestBashFragmentConfigParser(unittest.TestCase):
