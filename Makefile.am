@@ -84,6 +84,11 @@ srclink_files = \
 	$(all_python_code) \
 	$(TEST_FILES)
 
+lint_python_code = \
+	ganeti_nbma \
+	$(dist_TESTS) \
+	$(dist_sbin_SCRIPTS)
+
 stamp-directories: Makefile
 	@mkdir_p@ $(DIRS)
 	touch $@
@@ -133,3 +138,6 @@ ganeti:
 ganeti_nbma:
 	cd $(top_builddir) && test -h "$@" || { rm -f $@ && $(LN_S) lib $@; }
 
+lint: ganeti_nbma
+	@test -n "$(PYLINT)" || { echo 'pylint' not found during configure; exit 1; }
+	$(PYLINT) $(LINT_OPTS) $(lint_python_code)
