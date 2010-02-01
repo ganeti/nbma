@@ -127,3 +127,9 @@ lib/_autoconf.py: Makefile stamp-directories
 	  echo "PKGSYSCONFDIR = '$(pkgsysconfdir)'"; \
 	} > $@
 
+ganeti:
+	cd $(top_builddir) && test -h "$@" || { rm -f $@ && $(LN_S) ganeti.git/lib $@; }
+
+ganeti_nbma:
+	cd $(top_builddir) && test -h "$@" || { rm -f $@ && $(LN_S) lib $@; }
+
