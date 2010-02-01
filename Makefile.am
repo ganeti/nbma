@@ -43,6 +43,11 @@ dist_TESTS = \
 
 TESTS = $(dist_TESTS)
 
+# Things to build but not to install (add it to EXTRA_DIST if it should be
+# distributed)
+noinst_DATA = \
+	devel/upload
+
 EXTRA_DIST = \
 	scripts/gre_setup.in \
 	scripts/iptables_setup.in \
@@ -54,6 +59,7 @@ EXTRA_DIST = \
 
 CLEANFILES = \
 	autotools/replace_vars.sed \
+	devel/upload \
 	stamp-directories \
 	$(nodist_nbmautils_SCRIPTS) \
 	$(nodist_pkgpython_PYTHON)
@@ -131,6 +137,10 @@ lib/_autoconf.py: Makefile stamp-directories
 	  echo "PACKAGE_VERSION = '$(PACKAGE_VERSION)'"; \
 	  echo "PKGSYSCONFDIR = '$(pkgsysconfdir)'"; \
 	} > $@
+
+devel/upload: ganeti.git/devel/upload.in $(REPLACE_VARS_SED)
+	sed -f $(REPLACE_VARS_SED) < $< > $@
+	chmod u+x $@
 
 ganeti:
 	cd $(top_builddir) && test -h "$@" || { rm -f $@ && $(LN_S) ganeti.git/lib $@; }
