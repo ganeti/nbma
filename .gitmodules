@@ -1,0 +1,3 @@
+[submodule "ganeti.git"]
+	path = ganeti.git
+	url = git://git.ganeti.org/ganeti.git/
