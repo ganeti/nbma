@@ -12,6 +12,14 @@ AC_PROG_LN_S
 
 AC_CONFIG_FILES([ Makefile ])
 
+# Check for pylint
+AC_ARG_VAR(PYLINT, [pylint path])
+AC_PATH_PROG(PYLINT, [pylint], [])
+if test -z "$PYLINT"
+then
+  AC_MSG_WARN([pylint not found, checking code will not be possible])
+fi
+
 # Check for Python
 AM_PATH_PYTHON(2.4)
 
