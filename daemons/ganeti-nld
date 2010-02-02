@@ -157,12 +157,12 @@ class NLDConfdCallback(object):
     for instance, reply in zip(instances, replies):
       status, node = reply
       if status != gnt_constants.CONFD_REPL_STATUS_OK:
-        logging.debug("Error %s retrieving node for instance %s: %s",
-                      status, instance, node)
+        logging.warning("Error %s retrieving node for instance %s: %s",
+                        status, instance, node)
         continue
       if not node:
-        logging.debug("Empty answer retrieving node for instance %s",
-                      instance)
+        logging.warning("Empty answer retrieving node for instance %s",
+                        instance)
         continue
       if link not in self.cached_instance_node_map:
         self.cached_instance_node_map[link] = {}
