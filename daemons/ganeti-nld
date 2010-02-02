@@ -231,7 +231,7 @@ class NLDPeriodicUpdater(object):
   """Update network lookup tables periodically
 
   """
-  def __init__(self, name, mainloop, nld_config, # pylint: disable-msg=R0913
+  def __init__(self, name, mainloop, nld_config,
                hmac_key, mc_list, peer_manager):
     """Constructor for NLDPeriodicUpdater
 
