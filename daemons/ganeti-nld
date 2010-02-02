@@ -51,6 +51,8 @@ from ganeti import ssconf
 from ganeti import utils
 from ganeti import errors
 
+# pylint: disable-msg=W0611
+import ganeti.confd.client
 
 # Injecting ourselves in the ganeti constants
 NLD = "ganeti-nld"
