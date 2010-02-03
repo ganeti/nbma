@@ -26,7 +26,9 @@ import re
 
 from ganeti_nbma import constants
 
+from ganeti import constants as gnt_constants
 from ganeti import objects
+from ganeti import ssconf
 from ganeti import utils
 from ganeti import errors
 
@@ -37,6 +39,13 @@ DEFAULT_SECTION = "default"
 ENDPOINT_EXTIP_KEY = "endpoint_external_ip"
 INTERFACE_KEY = "gre_interface"
 TABLE_KEY = "routing_table"
+
+# Cluster-specific configuration keys
+CLUSTER_NAME_KEY = "cluster_name"
+MC_LIST_FILE_KEY = "mc_list_file"
+MC_LIST_UPDATE_KEY = "mc_list_update"
+HMAC_KEY_FILE_KEY = "hmac_key_file"
+MASTER_NBMA_INTERFACE_KEY = "master_nbma_interface"
 
 
 class BashFragmentConfigParser(objects.SerializableConfigParser):
@@ -91,10 +100,11 @@ class NLDConfig(objects.ConfigObject):
     "endpoints",
     "out_mc_file",
     "tables_tunnels",
+    "clusters",
     ]
 
-  @staticmethod
-  def FromConfigFiles(files):
+  @classmethod
+  def FromConfigFiles(cls, files):
     """Parse the config files
 
     @type files: list
@@ -105,6 +115,7 @@ class NLDConfig(objects.ConfigObject):
     """
     endpoints = []
     tables_map = {}
+    clusters = {}
 
     for config_file in files:
       parser = BashFragmentConfigParser.LoadFragmentFromFile(config_file)
@@ -140,5 +151,17 @@ class NLDConfig(objects.ConfigObject):
     if not tables_map:
       tables_map[constants.DEFAULT_ROUTING_TABLE] = \
         constants.DEFAULT_NEIGHBOUR_INTERFACE
+
+    if not clusters:
+      ss = ssconf.SimpleStore()
+      default_mclist = ss.KeyToFilename(gnt_constants.SS_MASTER_CANDIDATES_IPS)
+
+      # Add a default cluster (name='default')
+      clusters['default'] = {
+        'mc_list_file': default_mclist,
+        'mc_list_update': False,
+        'hmac_key_file': gnt_constants.HMAC_CLUSTER_KEY,
+        'master_neighbour_interface': constants.DEFAULT_NEIGHBOUR_INTERFACE
+        }
 
     return NLDConfig(endpoints=endpoints, tables_tunnels=tables_map)
