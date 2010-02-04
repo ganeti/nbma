@@ -48,11 +48,15 @@ TESTS = $(dist_TESTS)
 noinst_DATA = \
 	devel/upload
 
+docrst = \
+	doc/devnotes.rst
+
 EXTRA_DIST = \
 	scripts/gre_setup.in \
 	scripts/iptables_setup.in \
 	scripts/routing_setup.in \
 	scripts/common.sh.in \
+	$(docrst) \
 	$(RUN_IN_TEMPDIR) \
 	$(TEST_FILES) \
 	$(dist_TESTS)
