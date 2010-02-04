@@ -52,6 +52,7 @@ docrst = \
 	doc/devnotes.rst
 
 EXTRA_DIST = \
+	NEWS \
 	scripts/gre_setup.in \
 	scripts/iptables_setup.in \
 	scripts/routing_setup.in \

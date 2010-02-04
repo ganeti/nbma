@@ -1,0 +1,33 @@
+News
+====
+
+
+Version 0.2.0
+-------------
+
+- Many bugfixes
+- Ability to update the cluster master candidate list, and the file
+  which contains it
+- More debugging and more useful log messages
+- Ability to support more than one endpoint per cluster
+  (but not more than one cluster per endpoint)
+- Cache nbma status and updates a node's configuration only on changes
+- Route the cluster master ip address over the nbma
+- The code is now pylint clean
+- Build/Dev system more integrated with ganeti, with the use of a
+  submodule (see doc/devnotes.rst)
+
+
+Version 0.1.0 (initial release)
+-------------------------------
+
+- Contains the ganeti nbma initialization scripts (gre, routing, and
+  iptables setup)
+- Contains the ganeti nld (network lookup daemon) daemon, which updates
+  the system with the correct nbma status, from ganeti
+
+.. vim: set textwidth=72 :
+.. Local Variables:
+.. mode: rst
+.. fill-column: 72
+.. End:
