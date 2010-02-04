@@ -47,7 +47,6 @@ from ganeti_nbma import server
 from ganeti import confd
 from ganeti import constants as gnt_constants
 from ganeti import daemon
-from ganeti import ssconf
 from ganeti import utils
 from ganeti import errors
 
@@ -81,7 +80,7 @@ class NLDConfdCallback(object):
   """NLD callback for confd queries.
 
   """
-  def __init__(self, name, nld_config, peer_manager):
+  def __init__(self, cluster_name, nld_config, peer_manager):
     self.dispatch_table = {
       gnt_constants.CONFD_REQ_NODE_PIP_LIST:
         self.UpdateNodeIPList,
@@ -94,10 +93,11 @@ class NLDConfdCallback(object):
       gnt_constants.CONFD_REQ_CLUSTER_MASTER:
         self.UpdateMasterNodeIP,
     }
-    self.name = name
+    self.cluster_name = cluster_name
     self.nld_config = nld_config
+    self.cluster_config = nld_config.clusters[cluster_name]
     self.peer_manager = peer_manager
-    self.peer_manager.RegisterPeerSet(name)
+    self.peer_manager.RegisterPeerSet(cluster_name)
     self.cached_mc_list = None
     self.cached_instance_node_map = {}
     self.cached_master_ip = None
@@ -107,30 +107,34 @@ class NLDConfdCallback(object):
     """Update dynamic iptables rules from the node list
 
     """
-    logging.debug("Received node ip list reply")
-    self.peer_manager.UpdatePeerSetNodes(self.name, up.server_reply.answer)
+    logging.debug("Received node IP list reply [cluster: %s]",
+                  self.cluster_name)
+    self.peer_manager.UpdatePeerSetNodes(self.cluster_name,
+                                         up.server_reply.answer)
 
   def UpdateMCIPList(self, up):
     """Update dynamic iptables rules from the node list
 
     """
-    logging.debug("Received mc ip list reply")
+    logging.debug("Received master candidate IP list reply [cluster: %s]",
+                  self.cluster_name)
     if up.server_reply.answer == self.cached_mc_list:
       return
     self.cached_mc_list = up.server_reply.answer
     mc_list = up.server_reply.answer
-    logging.debug("Updating confd peers: %s", mc_list)
+    logging.debug("Updating confd peers [cluster: %s]: %s",
+                  self.cluster_name, mc_list)
     up.client.UpdatePeerList(mc_list)
-    if self.nld_config.out_mc_file:
-      utils.WriteFile(self.nld_config.out_mc_file,
+    if self.cluster_config["mc_list_update"]:
+      utils.WriteFile(self.cluster_config["mc_list_file"],
                       data="%s\n" % "\n".join(mc_list))
 
-  @staticmethod
-  def UpdateInstanceIPList(up):
+  def UpdateInstanceIPList(self, up):
     """Update the instances list
 
     """
-    logging.debug("Received instance ip list reply, and sending mapping query")
+    logging.debug("Received instance IP list reply [cluster: %s]."
+                  " Sending mapping query.", self.cluster_name)
     link = up.orig_request.query
     iplist = up.server_reply.answer
 
@@ -149,7 +153,8 @@ class NLDConfdCallback(object):
     """Update the instances mapping
 
     """
-    logging.debug("Received instance node mapping reply")
+    logging.debug("Received instance node mapping reply [cluster: %s]",
+                  self.cluster_name)
     instances = up.orig_request.query[gnt_constants.CONFD_REQQ_IPLIST]
     link = up.orig_request.query[gnt_constants.CONFD_REQQ_LINK]
     replies = up.server_reply.answer
@@ -157,12 +162,14 @@ class NLDConfdCallback(object):
     for instance, reply in zip(instances, replies):
       status, node = reply
       if status != gnt_constants.CONFD_REPL_STATUS_OK:
-        logging.warning("Error %s retrieving node for instance %s: %s",
-                        status, instance, node)
+        logging.warning("Error %s retrieving node for instance %s: %s"
+                        " [cluster: %s]",
+                        status, instance, node, self.cluster_name)
         continue
       if not node:
-        logging.warning("Empty answer retrieving node for instance %s",
-                        instance)
+        logging.warning("Empty answer retrieving node for instance %s"
+                        " [cluster: %s]",
+                        instance, self.cluster_name)
         continue
       if link not in self.cached_instance_node_map:
         self.cached_instance_node_map[link] = {}
@@ -180,7 +187,8 @@ class NLDConfdCallback(object):
     """
     master_ip, master_node_ip = up.server_reply.answer
     logging.debug("Received master node IP reply. Master IP: %s,"
-                  " master node IP: %s", master_ip, master_node_ip)
+                  " master node IP: %s [cluster: %s]",
+                  master_ip, master_node_ip, self.cluster_name)
 
     master_route_changed = False
 
@@ -190,8 +198,9 @@ class NLDConfdCallback(object):
         self.cached_master_ip = master_ip
       else:
         logging.warning("Master IP address changed (old: %s, new: %s)."
-                        " This is unexpected.",
-                        master_ip, self.cached_master_ip)
+                        " This is unexpected. [cluster: %s]",
+                        master_ip, self.cached_master_ip,
+                        self.cluster_name)
 
     if master_node_ip != self.cached_master_node_ip:
       master_route_changed = True
@@ -215,15 +224,18 @@ class NLDConfdCallback(object):
     """
     if up.type == confd.client.UPCALL_REPLY:
       if up.server_reply.status != gnt_constants.CONFD_REPL_STATUS_OK:
-        logging.warning("Received error '%s' to confd request %s",
-                        up.server_reply.answer, up.orig_request)
+        logging.warning("Received error '%s' to confd request %s"
+                        " [cluster: %s]",
+                        up.server_reply.answer, up.orig_request,
+                        self.cluster_name)
         return
 
       rtype = up.orig_request.type
       try:
         dispatcher = self.dispatch_table[rtype]
       except KeyError, err: # pylint: disable-msg=W0612
-        logging.warning("Unhandled confd response type: %s", rtype)
+        logging.warning("Unhandled confd response type: %s [cluster: %s]",
+                        rtype, self.cluster_name)
       dispatcher(up)
 
 
@@ -231,12 +243,12 @@ class NLDPeriodicUpdater(object):
   """Update network lookup tables periodically
 
   """
-  def __init__(self, name, mainloop, nld_config,
+  def __init__(self, cluster_name, mainloop, nld_config,
                hmac_key, mc_list, peer_manager):
     """Constructor for NLDPeriodicUpdater
 
-    @type name: string
-    @param name: unique name associated to this updater
+    @type cluster_name: string
+    @param cluster_name: name identifying the cluster
     @type mainloop: L{daemon.Mainloop}
     @param mainloop: ganeti-nld mainloop
     @type nld_config: L{lib.config.NLDConfig}
@@ -249,9 +261,10 @@ class NLDPeriodicUpdater(object):
     @param peer_manager: ganeti-nld peer manager
 
     """
+    self.cluster_name = cluster_name
     self.mainloop = mainloop
     self.nld_config = nld_config
-    my_callback = NLDConfdCallback(name, nld_config, peer_manager)
+    my_callback = NLDConfdCallback(cluster_name, nld_config, peer_manager)
     callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
     self.confd_client = confd.client.ConfdClient(hmac_key, mc_list,
                                                  callback, logger=logging)
@@ -309,7 +322,8 @@ class NLDPeriodicUpdater(object):
     """
     self.node_timer_handle = None
     self._EnableTimers()
-    logging.debug("Sending node ip list request")
+    logging.debug("Sending node IP list request [cluster: %s]",
+                  self.cluster_name)
     req = confd.client.ConfdClientRequest(
       type=gnt_constants.CONFD_REQ_NODE_PIP_LIST)
     self.confd_client.SendRequest(req)
@@ -320,7 +334,8 @@ class NLDPeriodicUpdater(object):
     """
     self.mc_timer_handle = None
     self._EnableTimers()
-    logging.debug("Sending mc ip list request")
+    logging.debug("Sending master candidate IP list request [cluster: %s]",
+                  self.cluster_name)
     req = confd.client.ConfdClientRequest(
       type=gnt_constants.CONFD_REQ_MC_PIP_LIST)
     self.confd_client.SendRequest(req)
@@ -333,7 +348,8 @@ class NLDPeriodicUpdater(object):
     """
     self.instance_timer_handle = None
     self._EnableTimers()
-    logging.debug("Sending instance ip list request")
+    logging.debug("Sending instance IP list request [cluster: %s]",
+                  self.cluster_name)
     for link in self.nld_config.tables_tunnels:
       req = confd.client.ConfdClientRequest(
               type=gnt_constants.CONFD_REQ_INSTANCES_IPS_LIST,
@@ -346,7 +362,8 @@ class NLDPeriodicUpdater(object):
     """
     self.master_timer_handle = None
     self._EnableTimers()
-    logging.debug("Sending master node ip request")
+    logging.debug("Sending master node IP request [cluster: %s]",
+                  self.cluster_name)
     query = {
       gnt_constants.CONFD_REQQ_FIELDS: (
         gnt_constants.CONFD_REQFIELD_IP,
@@ -364,23 +381,17 @@ class NetworkLookupDaemon(object):
   """Main Ganeti NLD class
 
   """
+  # pylint: disable-msg=W0613
+  # Unused argument 'options'
   def CheckNld(self, options, args):
     """Initial checks whether to run exit with a failure.
 
     """
-    if not os.path.isfile(options.hmac_file):
-      print >> sys.stderr, "Need HMAC key %s to run" % options.hmac_file
-      sys.exit(gnt_constants.EXIT_FAILURE)
-
-    if not os.path.isfile(options.mc_file):
-      print >> sys.stderr, "Need MC list %s to run" % options.mc_file
-      sys.exit(gnt_constants.EXIT_FAILURE)
-
     if (constants.DEFAULT_CONF_FILE not in args and
         os.path.exists(constants.DEFAULT_CONF_FILE)):
       args.append(constants.DEFAULT_CONF_FILE)
     elif not args:
-      print >> sys.stderr, "Please pass in at least a config file"
+      print >> sys.stderr, "Please specify at least one config file"
       sys.exit(gnt_constants.EXIT_FAILURE)
 
     try:
@@ -394,22 +405,39 @@ class NetworkLookupDaemon(object):
       print >> sys.stderr, "Configuration error: %s" % err
       sys.exit(gnt_constants.EXIT_FAILURE)
 
-    if options.update_mc_file:
-      self.config.out_mc_file = options.mc_file
+    for cluster_name, cluster_options in self.config.clusters.iteritems():
+      if not os.path.isfile(cluster_options["hmac_key_file"]):
+        print >> sys.stderr, (
+          "HMAC key file '%s' for cluster '%s' doesn't exist"
+          % (cluster_options["hmac_key_file"], cluster_name))
+        sys.exit(gnt_constants.EXIT_FAILURE)
+
+      if not os.path.isfile(cluster_options["mc_list_file"]):
+        print >> sys.stderr, (
+          "Master candidate list file '%s' fpr cluster '%s' doesn't exist"
+          % (cluster_options["mc_list_file"], cluster_name))
+        sys.exit(gnt_constants.EXIT_FAILURE)
 
   def ExecNld(self, options, args): # pylint: disable-msg=W0613
     """Main confd function, executed with PID file held
 
     """
     mainloop = daemon.Mainloop()
+    # One PeerSetManager instance is enough as it can handle multiple
+    # peer sets
     peer_set_manager = server.PeerSetManager()
     peer_set_manager.RegisterPeerSet("endpoints")
     peer_set_manager.UpdatePeerSetNodes("endpoints", self.config.endpoints)
-    hmac_key = utils.ReadFile(options.hmac_file)
-    mc_list = utils.ReadFile(options.mc_file).splitlines()
-    #FIXME: Create a unique string per cluster, when we'll have more than one
-    NLDPeriodicUpdater("global", mainloop, self.config,
-                       hmac_key, mc_list, peer_set_manager)
+
+    # Instantiate one periodic updater per cluster
+    self.updaters = []
+    for cluster_name, cluster_options in self.config.clusters.iteritems():
+      hmac_key = utils.ReadFile(cluster_options["hmac_key_file"])
+      mc_list = utils.ReadFile(cluster_options["mc_list_file"]).splitlines()
+      self.updaters.append(
+          NLDPeriodicUpdater(cluster_name, mainloop, self.config,
+                             hmac_key, mc_list, peer_set_manager)
+          )
     mainloop.Run()
 
 
@@ -421,17 +449,6 @@ def main():
                         usage="%prog [-f] [-d] [-b ADDRESS] [config...]",
                         version="%%prog (ganeti-nld) %s" %
                         constants.RELEASE_VERSION)
-  parser.add_option("--hmac-key", dest="hmac_file",
-                    help="HMAC key file",
-                    default=gnt_constants.HMAC_CLUSTER_KEY, type="string")
-  ss = ssconf.SimpleStore()
-  default_mclist = ss.KeyToFilename(gnt_constants.SS_MASTER_CANDIDATES_IPS)
-  parser.add_option("--mc-list", dest="mc_file",
-                    help="Master Candidates addresses file",
-                    default=default_mclist, type="string")
-  parser.add_option("--update-mc-file", dest="update_mc_file",
-                    help="Periodically update the MC file",
-                    default=False, action="store_true")
 
   dirs = [(val, gnt_constants.RUN_DIRS_MODE)
           for val in gnt_constants.SUB_RUN_DIRS]
