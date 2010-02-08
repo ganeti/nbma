@@ -207,13 +207,10 @@ class NLDConfdCallback(object):
       self.cached_master_node_ip = master_node_ip
 
     if master_route_changed:
-      # TODO: we are assuming here that the default neighbour interface
-      # is the correct one to use, but this is only valid for single-NBMA
-      # setups. Will have to replace this when we introduce support for
-      # multiple NBMA networks.
-      networktables.UpdateNetworkEntry(master_ip, master_node_ip,
-                                       networktables.NEIGHBOUR_CONTEXT,
-                                       constants.DEFAULT_NEIGHBOUR_INTERFACE)
+      networktables.UpdateNetworkEntry(
+        master_ip, master_node_ip,
+        networktables.NEIGHBOUR_CONTEXT,
+        self.cluster_config['master_neighbour_interface'])
 
   def __call__(self, up):
     """NLD confd callback.
