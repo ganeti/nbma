@@ -7,5 +7,6 @@ trap "rm -rf $tmpdir" EXIT
 
 cp -r scripts lib test $tmpdir
 mv $tmpdir/lib $tmpdir/ganeti_nbma
+cp -r ganeti.git/lib $tmpdir/ganeti
 
 cd $tmpdir && "$@"

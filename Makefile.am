@@ -30,6 +30,7 @@ pkgpython_PYTHON = \
 	lib/config.py \
 	lib/iptables.py \
 	lib/networktables.py \
+	lib/nflog_dispatcher.py \
 	lib/server.py
 
 nodist_pkgpython_PYTHON = \
