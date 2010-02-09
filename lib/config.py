@@ -39,6 +39,7 @@ DEFAULT_SECTION = "default"
 ENDPOINT_EXTIP_KEY = "endpoint_external_ip"
 INTERFACE_KEY = "gre_interface"
 TABLE_KEY = "routing_table"
+NFLOG_QUEUE_KEY = "nflog_queue"
 
 # Cluster-specific configuration keys
 CLUSTER_NAME_KEY = "cluster_name"
@@ -101,6 +102,7 @@ class NLDConfig(objects.ConfigObject):
     "out_mc_file",
     "tables_tunnels",
     "clusters",
+    "nflog_queue",
     ]
 
   @classmethod
@@ -148,6 +150,11 @@ class NLDConfig(objects.ConfigObject):
         interface = constants.DEFAULT_NEIGHBOUR_INTERFACE
         has_interface = False
 
+      if parser.has_option(DEFAULT_SECTION, NFLOG_QUEUE_KEY):
+        nflog_queue = int(parser.get(DEFAULT_SECTION, NFLOG_QUEUE_KEY))
+      else:
+        nflog_queue = constants.DEFAULT_NFLOG_QUEUE
+
       if (has_table or has_interface) and table not in tables_map:
         tables_map[table] = interface
       elif (has_table or has_interface) and tables_map[table] != interface:
@@ -188,4 +195,5 @@ class NLDConfig(objects.ConfigObject):
 
     return NLDConfig(endpoints=endpoints,
                      tables_tunnels=tables_map,
-                     clusters=clusters)
+                     clusters=clusters,
+                     nflog_queue=nflog_queue)

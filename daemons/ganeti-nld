@@ -36,6 +36,7 @@ Ganeti, on the cluster hmac key and master candidate list being available.
 import os
 import sys
 import logging
+import ip
 
 from optparse import OptionParser
 
@@ -373,6 +374,20 @@ class NLDPeriodicUpdater(object):
     self.confd_client.SendRequest(req)
 
 
+class MisroutedPacketHandler(object):
+  """Callback called when a packet is received via the NFLOG target.
+
+  """
+  def __call__(self, i, nflog_payload):
+    ip_packet = ip.disassemble(nflog_payload.get_data())
+    logging.debug("misrouted packet detected. source IP: %s", ip_packet.src)
+    # TODO: notify the endpoint(s) via an NLD request (preferably by iterating
+    #       over the private IPs of the endpoints)
+    # TODO: look up the source IP in the peer list and if found, notify the
+    #       relevant node
+    return 1
+
+
 class NetworkLookupDaemon(object):
   """Main Ganeti NLD class
 
@@ -434,6 +449,11 @@ class NetworkLookupDaemon(object):
           NLDPeriodicUpdater(cluster_name, mainloop, self.config,
                              hmac_key, mc_list, peer_set_manager)
           )
+
+    misrouted_packet_callback = MisroutedPacketHandler()
+    nflog_dispatcher.AsyncNFLog(misrouted_packet_callback,
+                                log_group=self.config.nflog_queue)
+
     mainloop.Run()
 
 
