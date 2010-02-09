@@ -40,3 +40,10 @@ if [[ -n "$INSTANCE_NETWORK" ]]; then
   iptables -t raw -A PREROUTING -s $INSTANCE_NETWORK -j NOTRACK
   iptables -t raw -A PREROUTING -d $INSTANCE_NETWORK -j NOTRACK
 fi
+
+# Send 'misrouted' packets to NFLOG. These are picked up by ganeti-nld.
+iptables -L FORWARD -v | grep -q "inout_$GRE_INTERFACE" || \
+ iptables -A FORWARD -i $GRE_INTERFACE -o $GRE_INTERFACE \
+   -m hashlimit --hashlimit 1/second --hashlimit-burst 1 \
+   --hashlimit-mode dstip,srcip --hashlimit-name "inout_$GRE_INTERFACE" \
+   -j NFLOG --nflog-group $NFLOG_QUEUE --nflog-prefix "inout_$GRE_INTERFACE"

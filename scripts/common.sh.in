@@ -46,6 +46,7 @@ ENDPOINT_CONF_FILE=$1
 : ${GRE_BASE_NETDEV:="eth0"}
 : ${ENDPOINT_NETDEV:="eth0"}
 : ${ROUTING_TABLE:="100"}
+: ${NFLOG_QUEUE:="0"}
 # DIRECTROUTES and NBMAROUTES work even if unset
 
 [[ -n "$INSTANCE_NETWORK" ]] || fail "Missing INSTANCE_NETWORK in config file"
