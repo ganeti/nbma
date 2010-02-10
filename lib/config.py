@@ -117,6 +117,15 @@ class NLDConfig(objects.ConfigObject):
     tables_map = {}
     clusters = {}
 
+    ss = ssconf.SimpleStore()
+    default_mclist = ss.KeyToFilename(gnt_constants.SS_MASTER_CANDIDATES_IPS)
+    default_cluster_options = {
+      'mc_list_file': default_mclist,
+      'mc_list_update': False,
+      'hmac_key_file': gnt_constants.HMAC_CLUSTER_KEY,
+      'master_neighbour_interface': constants.DEFAULT_NEIGHBOUR_INTERFACE
+      }
+
     for config_file in files:
       parser = BashFragmentConfigParser.LoadFragmentFromFile(config_file)
       if parser.has_option(DEFAULT_SECTION, ENDPOINT_EXTIP_KEY):
@@ -145,6 +154,27 @@ class NLDConfig(objects.ConfigObject):
         raise errors.ConfigurationError('Mapping for table %s already declared'
           ' (was: %s, new one: %s)' % (table, tables_map[table], interface))
 
+      # Parse per-cluster options
+      if parser.has_option(DEFAULT_SECTION, CLUSTER_NAME_KEY):
+        cluster_name = parser.get(DEFAULT_SECTION, CLUSTER_NAME_KEY)
+        clusters[cluster_name] = default_cluster_options
+
+        if parser.has_option(DEFAULT_SECTION, MC_LIST_FILE_KEY):
+          clusters[cluster_name]['mc_list_file'] = (
+            parser.get(DEFAULT_SECTION, MC_LIST_FILE_KEY))
+
+        if parser.has_option(DEFAULT_SECTION, MC_LIST_UPDATE_KEY):
+          clusters[cluster_name]['mc_list_update'] = (
+            parser.get(DEFAULT_SECTION, MC_LIST_UPDATE_KEY) == '1')
+
+        if parser.has_option(DEFAULT_SECTION, HMAC_KEY_FILE_KEY):
+          clusters[cluster_name]['hmac_key_file'] = (
+            parser.get(DEFAULT_SECTION, HMAC_KEY_FILE_KEY))
+
+        if parser.has_option(DEFAULT_SECTION, MASTER_NBMA_INTERFACE_KEY):
+          clusters[cluster_name]['master_neighbour_interface'] = (
+            parser.get(DEFAULT_SECTION, MASTER_NBMA_INTERFACE_KEY))
+
     if not endpoints:
       raise errors.ConfigurationError('No endpoints found')
 
@@ -153,15 +183,9 @@ class NLDConfig(objects.ConfigObject):
         constants.DEFAULT_NEIGHBOUR_INTERFACE
 
     if not clusters:
-      ss = ssconf.SimpleStore()
-      default_mclist = ss.KeyToFilename(gnt_constants.SS_MASTER_CANDIDATES_IPS)
-
       # Add a default cluster (name='default')
-      clusters['default'] = {
-        'mc_list_file': default_mclist,
-        'mc_list_update': False,
-        'hmac_key_file': gnt_constants.HMAC_CLUSTER_KEY,
-        'master_neighbour_interface': constants.DEFAULT_NEIGHBOUR_INTERFACE
-        }
+      clusters['default'] = default_cluster_options
 
-    return NLDConfig(endpoints=endpoints, tables_tunnels=tables_map)
+    return NLDConfig(endpoints=endpoints,
+                     tables_tunnels=tables_map,
+                     clusters=clusters)
