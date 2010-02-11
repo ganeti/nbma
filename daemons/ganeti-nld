@@ -80,7 +80,8 @@ class NLDConfdCallback(object):
   """NLD callback for confd queries.
 
   """
-  def __init__(self, cluster_name, nld_config, peer_manager):
+  def __init__(self, cluster_name, nld_config, peer_manager,
+               instance_node_map):
     self.dispatch_table = {
       gnt_constants.CONFD_REQ_NODE_PIP_LIST:
         self.UpdateNodeIPList,
@@ -99,7 +100,7 @@ class NLDConfdCallback(object):
     self.peer_manager = peer_manager
     self.peer_manager.RegisterPeerSet(cluster_name)
     self.cached_mc_list = None
-    self.cached_instance_node_map = {}
+    self.cached_instance_node_map = instance_node_map
     self.cached_master_ip = None
     self.cached_master_node_ip = None
 
@@ -241,7 +242,7 @@ class NLDPeriodicUpdater(object):
 
   """
   def __init__(self, cluster_name, mainloop, nld_config,
-               hmac_key, mc_list, peer_manager):
+               hmac_key, mc_list, peer_manager, instance_node_map):
     """Constructor for NLDPeriodicUpdater
 
     @type cluster_name: string
@@ -256,12 +257,15 @@ class NLDPeriodicUpdater(object):
     @param mc_list: list of master candidates (confd peers)
     @type peer_manager: L{server.PeerSetManager}
     @param peer_manager: ganeti-nld peer manager
+    @type instance_node_map: dictionary
+    @param instance_node_map: an instance->node map
 
     """
     self.cluster_name = cluster_name
     self.mainloop = mainloop
     self.nld_config = nld_config
-    my_callback = NLDConfdCallback(cluster_name, nld_config, peer_manager)
+    my_callback = NLDConfdCallback(cluster_name, nld_config, peer_manager,
+                                   instance_node_map)
     callback = confd.client.ConfdFilterCallback(my_callback, logger=logging)
     self.confd_client = confd.client.ConfdClient(hmac_key, mc_list,
                                                  callback, logger=logging)
@@ -378,6 +382,9 @@ class MisroutedPacketHandler(object):
   """Callback called when a packet is received via the NFLOG target.
 
   """
+  def __init__(self, instance_node_maps):
+    self.instance_node_maps = instance_node_maps
+
   def __call__(self, i, nflog_payload):
     ip_packet = ip.disassemble(nflog_payload.get_data())
     logging.debug("misrouted packet detected. source IP: %s", ip_packet.src)
@@ -440,17 +447,22 @@ class NetworkLookupDaemon(object):
     peer_set_manager.RegisterPeerSet("endpoints")
     peer_set_manager.UpdatePeerSetNodes("endpoints", self.config.endpoints)
 
+    # Global instance->node maps
+    instance_node_maps = {}
+
     # Instantiate one periodic updater per cluster
     self.updaters = []
     for cluster_name, cluster_options in self.config.clusters.iteritems():
       hmac_key = utils.ReadFile(cluster_options["hmac_key_file"])
       mc_list = utils.ReadFile(cluster_options["mc_list_file"]).splitlines()
+      instance_node_maps[cluster_name] = {}
       self.updaters.append(
           NLDPeriodicUpdater(cluster_name, mainloop, self.config,
-                             hmac_key, mc_list, peer_set_manager)
+                             hmac_key, mc_list, peer_set_manager,
+                             instance_node_maps[cluster_name])
           )
 
-    misrouted_packet_callback = MisroutedPacketHandler()
+    misrouted_packet_callback = MisroutedPacketHandler(instance_node_maps)
     nflog_dispatcher.AsyncNFLog(misrouted_packet_callback,
                                 log_group=self.config.nflog_queue)
 
