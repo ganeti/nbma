@@ -386,12 +386,41 @@ class MisroutedPacketHandler(object):
     self.instance_node_maps = instance_node_maps
 
   def __call__(self, i, nflog_payload):
+    # Look up the source IP in the instance->node maps. If found, it means the
+    # packet came from an instance in one of our clusters, which means the
+    # node it's running on has stale routing information, so we have to
+    # notify that node.
     ip_packet = ip.disassemble(nflog_payload.get_data())
-    logging.debug("misrouted packet detected. source IP: %s", ip_packet.src)
+
+    # FIXME: If different instances have the same IP address on separate
+    # clusters this search might find the wrong one. We should first get
+    # the interface the packet was received on
+    # (nflog_payload.get_indev() or nflog_payload.get_prefix()) and only
+    # look up nodes in the cluster associated with that interface.
+    source_cluster = None
+    source_link = None
+    source_node = None
+    for cluster, cluster_map in self.instance_node_maps.iteritems():
+      for link, link_map in cluster_map.iteritems():
+        source_node = link_map.get(ip_packet.src, None)
+        if source_node:
+          source_cluster = cluster
+          source_link = link
+          break
+
+    if source_node:
+      # TODO: send notification to this node
+      logging.debug("misrouted packet detected."
+                    " [cluster: %s] [node: %s] [link: %s] [source: %s]",
+                    source_cluster, source_node, source_link,
+                    ip_packet.src)
+    else:
+      logging.debug("misrouted packet detected. [source: %s]",
+                    ip_packet.src)
+
     # TODO: notify the endpoint(s) via an NLD request (preferably by iterating
     #       over the private IPs of the endpoints)
-    # TODO: look up the source IP in the peer list and if found, notify the
-    #       relevant node
+
     return 1
 
 
