@@ -44,6 +44,7 @@ from ganeti_nbma import constants
 from ganeti_nbma import config
 from ganeti_nbma import server
 from ganeti_nbma import nflog_dispatcher
+from ganeti_nbma import nld_nld
 from ganeti_nbma import nld_confd
 
 from ganeti import constants as gnt_constants
@@ -57,13 +58,15 @@ import ganeti.confd.client
 # Injecting ourselves in the ganeti constants
 gnt_constants.NLD = constants.NLD
 gnt_constants.DAEMONS_LOGFILES[constants.NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
+gnt_constants.DAEMONS_PORTS[constants.NLD] = ("udp", 1816)
 
 
 class MisroutedPacketHandler(object):
   """Callback called when a packet is received via the NFLOG target.
 
   """
-  def __init__(self, instance_node_maps):
+  def __init__(self, nld_server, instance_node_maps):
+    self.nld_server = nld_server
     self.instance_node_maps = instance_node_maps
 
   def __call__(self, i, nflog_payload):
@@ -90,11 +93,11 @@ class MisroutedPacketHandler(object):
           break
 
     if source_node:
-      # TODO: send notification to this node
       logging.debug("misrouted packet detected."
                     " [cluster: %s] [node: %s] [link: %s] [source: %s]",
                     source_cluster, source_node, source_link,
                     ip_packet.src)
+      # TODO: send NLD route invalidation request to the source node
     else:
       logging.debug("misrouted packet detected. [source: %s]",
                     ip_packet.src)
@@ -162,8 +165,10 @@ class NetworkLookupDaemon(object):
 
     # Instantiate one periodic updater per cluster
     self.updaters = []
+    self.cluster_keys = {}
     for cluster_name, cluster_options in self.config.clusters.iteritems():
       hmac_key = utils.ReadFile(cluster_options["hmac_key_file"])
+      self.cluster_keys[cluster_name] = hmac_key
       mc_list = utils.ReadFile(cluster_options["mc_list_file"]).splitlines()
       instance_node_maps[cluster_name] = {}
       self.updaters.append(
@@ -173,7 +178,19 @@ class NetworkLookupDaemon(object):
             instance_node_maps[cluster_name])
           )
 
-    misrouted_packet_callback = MisroutedPacketHandler(instance_node_maps)
+    # Instantiate NLD network request and response processers
+    # and the async UDP server
+    nld_request_processor = nld_nld.NLDRequestProcessor(self.cluster_keys)
+    nld_response_callback = nld_nld.NLDResponseCallback()
+    nld_server = nld_nld.NLDAsyncUDPServer(options.bind_address,
+                                           options.port,
+                                           nld_request_processor,
+                                           nld_response_callback,
+                                           self.cluster_keys)
+
+    # Instantiate the misrouted packet handler and its async dispatcher
+    misrouted_packet_callback = MisroutedPacketHandler(nld_server,
+                                                       instance_node_maps)
     nflog_dispatcher.AsyncNFLog(misrouted_packet_callback,
                                 log_group=self.config.nflog_queue)
 

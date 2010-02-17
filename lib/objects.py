@@ -1,0 +1,62 @@
+#
+#
+
+# Copyright (C) 2006, 2007 Google Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+
+"""Transportable objects for Ganeti NLD.
+
+"""
+
+from ganeti import objects as gnt_objects
+
+
+class NLDRequest(gnt_objects.ConfigObject):
+  """Object holding an NLD request.
+
+  @ivar protocol: NLD protocol version
+  @ivar type: NLD query type
+  @ivar query: query request
+  @ivar rsalt: requested reply salt
+
+  """
+  __slots__ = [
+    "protocol",
+    "is_request",
+    "cluster",
+    "type",
+    "query",
+    "rsalt",
+    ]
+
+
+class NLDReply(gnt_objects.ConfigObject):
+  """Object holding an NLD reply.
+
+  @ivar protocol: NLD protocol version
+  @ivar status: reply status code (ok, error)
+  @ivar answer: NLD query reply
+
+  """
+  __slots__ = [
+    "protocol",
+    "is_request",
+    "cluster",
+    "status",
+    "answer",
+    ]

@@ -28,10 +28,13 @@ pkgpython_PYTHON = \
 	lib/__init__.py \
 	lib/constants.py \
 	lib/config.py \
+	lib/errors.py \
 	lib/iptables.py \
 	lib/networktables.py \
 	lib/nflog_dispatcher.py \
 	lib/nld_confd.py \
+	lib/nld_nld.py \
+	lib/objects.py \
 	lib/server.py
 
 nodist_pkgpython_PYTHON = \
