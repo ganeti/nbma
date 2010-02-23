@@ -65,9 +65,11 @@ class MisroutedPacketHandler(object):
   """Callback called when a packet is received via the NFLOG target.
 
   """
-  def __init__(self, nld_server, instance_node_maps):
+  def __init__(self, nld_server, instance_node_maps, endpoints, updaters):
     self.nld_server = nld_server
     self.instance_node_maps = instance_node_maps
+    self.endpoints = endpoints
+    self.updaters = updaters
 
   def __call__(self, i, nflog_payload):
     # Look up the source IP in the instance->node maps. If found, it means the
@@ -97,13 +99,30 @@ class MisroutedPacketHandler(object):
                     " [cluster: %s] [node: %s] [link: %s] [source: %s]",
                     source_cluster, source_node, source_link,
                     ip_packet.src)
-      # TODO: send NLD route invalidation request to the source node
+      # Update the instance IP list on this node
+      self.updaters[source_cluster].UpdateInstances()
+      # Send NLD route invalidation request to the source node
+      request = nld_nld.NLDClientRequest(
+          type=constants.NLD_REQ_ROUTE_INVALIDATE,
+          query=ip_packet.dst)
+      self.nld_server.SendRequest(request, source_cluster, source_node)
     else:
       logging.debug("misrouted packet detected. [source: %s]",
                     ip_packet.src)
+      # Update the instance IP lists on this node
+      for _, updater in self.updaters.iteritems():
+        updater.UpdateInstances()
 
-    # TODO: notify the endpoint(s) via an NLD request (preferably by iterating
-    #       over the private IPs of the endpoints)
+    # Notify the endpoint(s)
+    # TODO: this uses the "external" IPs of the endpoints.
+    # Maybe we should be using their private IPs here.
+    logging.debug("notifying the endpoints about a misrouted packet...")
+    for endpoint in self.endpoints:
+      logging.debug("notifying endpoint: %s", endpoint)
+      request = nld_nld.NLDClientRequest(
+          type=constants.NLD_REQ_ROUTE_INVALIDATE,
+          query=ip_packet.dst)
+      self.nld_server.SendRequest(request, "default", endpoint)
 
     return 1
 
@@ -164,23 +183,21 @@ class NetworkLookupDaemon(object):
     instance_node_maps = {}
 
     # Instantiate one periodic updater per cluster
-    self.updaters = []
+    self.updaters = {}
     self.cluster_keys = {}
     for cluster_name, cluster_options in self.config.clusters.iteritems():
       hmac_key = utils.ReadFile(cluster_options["hmac_key_file"])
       self.cluster_keys[cluster_name] = hmac_key
       mc_list = utils.ReadFile(cluster_options["mc_list_file"]).splitlines()
       instance_node_maps[cluster_name] = {}
-      self.updaters.append(
-          nld_confd.NLDPeriodicUpdater(
-            cluster_name, mainloop, self.config,
-            hmac_key, mc_list, peer_set_manager,
-            instance_node_maps[cluster_name])
-          )
+      self.updaters[cluster_name] = nld_confd.NLDPeriodicUpdater(
+          cluster_name, mainloop, self.config, hmac_key, mc_list,
+          peer_set_manager, instance_node_maps[cluster_name])
 
     # Instantiate NLD network request and response processers
     # and the async UDP server
-    nld_request_processor = nld_nld.NLDRequestProcessor(self.cluster_keys)
+    nld_request_processor = nld_nld.NLDRequestProcessor(self.cluster_keys,
+                                                        self.updaters)
     nld_response_callback = nld_nld.NLDResponseCallback()
     nld_server = nld_nld.NLDAsyncUDPServer(options.bind_address,
                                            options.port,
@@ -190,7 +207,9 @@ class NetworkLookupDaemon(object):
 
     # Instantiate the misrouted packet handler and its async dispatcher
     misrouted_packet_callback = MisroutedPacketHandler(nld_server,
-                                                       instance_node_maps)
+                                                       instance_node_maps,
+                                                       self.config.endpoints,
+                                                       self.updaters)
     nflog_dispatcher.AsyncNFLog(misrouted_packet_callback,
                                 log_group=self.config.nflog_queue)
 
