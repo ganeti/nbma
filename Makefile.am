@@ -57,6 +57,7 @@ EXTRA_DIST = \
 	scripts/iptables_setup.in \
 	scripts/routing_setup.in \
 	scripts/common.sh.in \
+	hooks/watcher/check-nld \
 	$(docrst) \
 	$(RUN_IN_TEMPDIR) \
 	$(TEST_FILES) \
