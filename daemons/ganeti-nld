@@ -54,9 +54,8 @@ from ganeti import errors
 import ganeti.confd.client
 
 # Injecting ourselves in the ganeti constants
-NLD = "ganeti-nld"
-gnt_constants.NLD = NLD
-gnt_constants.DAEMONS_LOGFILES[NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
+gnt_constants.NLD = constants.NLD
+gnt_constants.DAEMONS_LOGFILES[constants.NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
 
 # Node list update period (seconds)
 NODE_LIST_UPDATE_TIMEOUT = 30
@@ -452,7 +451,7 @@ def main():
   dirs.append((gnt_constants.LOCK_DIR, 1777))
   nld = NetworkLookupDaemon()
 
-  daemon.GenericMain(NLD, parser, dirs, nld.CheckNld, nld.ExecNld)
+  daemon.GenericMain(constants.NLD, parser, dirs, nld.CheckNld, nld.ExecNld)
 
 
 if __name__ == "__main__":
