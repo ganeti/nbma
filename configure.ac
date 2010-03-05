@@ -25,5 +25,6 @@ AM_PATH_PYTHON(2.4)
 
 AC_PYTHON_MODULE(ganeti, t)
 AC_PYTHON_MODULE(netfilter, t)
+AC_PYTHON_MODULE(nflog, t)
 
 AC_OUTPUT
