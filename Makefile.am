@@ -49,10 +49,17 @@ noinst_DATA = \
 	devel/upload
 
 docrst = \
+	doc/design-1.0.rst \
 	doc/devnotes.rst
 
 EXTRA_DIST = \
 	NEWS \
+	pylintrc \
+	ganeti.git/devel/upload.in \
+	devel/upload \
+	doc/examples/cluster.conf \
+	doc/examples/endpoint.conf \
+	doc/examples/common.conf \
 	scripts/gre_setup.in \
 	scripts/iptables_setup.in \
 	scripts/routing_setup.in \
