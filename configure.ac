@@ -27,4 +27,9 @@ AC_PYTHON_MODULE(ganeti, t)
 AC_PYTHON_MODULE(netfilter, t)
 AC_PYTHON_MODULE(nflog, t)
 
+if ! autotools/check-ganeti-version
+then
+	AC_MSG_ERROR([Please update your Ganeti version])
+fi
+
 AC_OUTPUT
