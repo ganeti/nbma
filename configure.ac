@@ -10,17 +10,6 @@ AM_INIT_AUTOMAKE([1.9 foreign tar-ustar -Wall -Wno-portability])
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
-# Check required Ganeti version
-AC_MSG_CHECKING([Ganeti submodule version])
-required_ganeti_version=2.1.1
-current_ganeti_version=$(sed -n 's/^Version \(.*\)/\1/p; 10q' \
-                         < ganeti.git/NEWS)
-if ! test "${current_ganeti_version}" == "${required_ganeti_version}"
-then
-  AC_MSG_ERROR([Ganeti version $required_ganeti_version is required, but \
-$current_ganeti_version is present in ganeti.git])
-fi
-
 AC_CONFIG_FILES([ Makefile ])
 
 # Check for pylint
