@@ -55,11 +55,6 @@ from ganeti import errors
 # pylint: disable-msg=W0611
 import ganeti.confd.client
 
-# Injecting ourselves in the ganeti constants
-gnt_constants.NLD = constants.NLD
-gnt_constants.DAEMONS_LOGFILES[constants.NLD] = gnt_constants.LOG_DIR + "nl-daemon.log"
-gnt_constants.DAEMONS_PORTS[constants.NLD] = ("udp", 1816)
-
 
 class MisroutedPacketHandler(object):
   """Callback called when a packet is received via the NFLOG target.
