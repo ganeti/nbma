@@ -56,7 +56,6 @@ ip rule list | grep -q "lookup $ROUTING_TABLE[[:space:]]*$" || SET_RULES=1
 
 if [[ $SET_RULES -eq 1 ]]; then
   ip rule add dev $GRE_INTERFACE table $ROUTING_TABLE
-  ip rule add from $INSTANCE_NETWORK table $ROUTING_TABLE
   # If we're using policy routing we want to have a way to force a packet to be
   # looked up against a specific routing table. We do this by making sure that
   # packets that are marked with an fwmark lookup the same routing table number.
