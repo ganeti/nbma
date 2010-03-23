@@ -39,6 +39,16 @@ fi
 if [[ -n "$INSTANCE_NETWORK" ]]; then
   iptables -t raw -A PREROUTING -s $INSTANCE_NETWORK -j NOTRACK
   iptables -t raw -A PREROUTING -d $INSTANCE_NETWORK -j NOTRACK
+  # When policy routing is used, we want icmp fragmentation-needed packets to
+  # go directly to the instances via their direct route, rather than be routed
+  # according to our main routing table. This iptables rule sets a local
+  # netfilter mark on the packets that forces them to be looked up against the
+  # separate routing table.
+  # FIXME: this only works if the instance networks are non overlapping
+  [[ $ROUTING_TABLE != "main" ]] && \
+    iptables -t mangle -I OUTPUT -d $INSTANCE_NETWORK \
+      -p icmp --icmp-type fragmentation-needed \
+      -j MARK --set-mark $ROUTING_TABLE
 fi
 
 # Send 'misrouted' packets to NFLOG. These are picked up by ganeti-nld.
