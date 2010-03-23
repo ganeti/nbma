@@ -88,6 +88,7 @@ class NLDRequestProcessor(object):
       not constants.NLD_REQS.symmetric_difference(self.dispatch_table), \
       "dispatch_table is unaligned with NLD_REQS"
 
+  # pylint: disable-msg=R0201
   def _Ping(self, query):
     if query is None:
       status = constants.NLD_REPL_STATUS_OK
