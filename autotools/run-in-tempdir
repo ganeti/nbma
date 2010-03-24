@@ -4,9 +4,14 @@ set -e
 
 tmpdir=$(mktemp -d -t gntbuild.XXXXXXXX)
 trap "rm -rf $tmpdir" EXIT
+srcdir=$(pwd)
 
 cp -r scripts lib test $tmpdir
 mv $tmpdir/lib $tmpdir/ganeti_nbma
-cp -r ganeti.git/lib $tmpdir/ganeti
+if ! (cd $tmpdir; $srcdir/autotools/check-ganeti-version); then
+  # (...) || exit 1 because set -e is broken for subshells on older bash
+  (cd ganeti.git && ./autogen.sh && ./configure && make) || exit 1
+  cp -r ganeti.git/lib $tmpdir/ganeti
+fi
 
 cd $tmpdir && "$@"
