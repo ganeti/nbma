@@ -2,7 +2,11 @@
 
 import sys
 
-from ganeti import constants
+try:
+  from ganeti import constants
+except ImportError:
+  sys.stderr.write("Cannot import the python 'ganeti' module\n")
+  sys.exit(1)
 
 ganeti_version = constants.RELEASE_VERSION
 needed_version = "2.1.1"
