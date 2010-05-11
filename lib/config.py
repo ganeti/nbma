@@ -124,7 +124,7 @@ class NLDConfig(objects.ConfigObject):
     default_cluster_options = {
       'mc_list_file': default_mclist,
       'mc_list_update': False,
-      'hmac_key_file': gnt_constants.HMAC_CLUSTER_KEY,
+      'hmac_key_file': gnt_constants.CONFD_HMAC_KEY,
       'master_neighbour_interface': constants.DEFAULT_NEIGHBOUR_INTERFACE
       }
 
